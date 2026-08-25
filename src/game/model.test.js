@@ -3,7 +3,7 @@ import { LEVELS } from './levels.js';
 import { applyMove, arrowCanExit, cloneState, createFreshGameState, getAvailableMoves, getGameStatus, resetState, rotateClockwise, solveLevel } from './model.js';
 import { getInitialLevelIndex } from '../storage.js';
 
-const state = (arrows) => ({ rows: 3, cols: 3, arrows });
+const state = (arrows, barriers = []) => ({ rows: 3, cols: 3, arrows, barriers });
 
 describe('Arrow Shift model', () => {
   it('finds an unobstructed path and rejects a blocked arrow', () => {
@@ -83,7 +83,7 @@ describe('Arrow Shift model', () => {
     const fresh = createFreshGameState(definition);
     fresh.arrows[0].direction = 'down';
     expect(definition.arrows[0].direction).toBe('up');
-    expect(fresh).toEqual({ rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'down', pinned: false }] });
+    expect(fresh).toEqual({ rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'down', pinned: false }], barriers: [] });
     expect(getInitialLevelIndex(8, true, 10)).toBe(0);
     expect(getInitialLevelIndex(8, false, 10)).toBe(7);
   });
@@ -133,6 +133,61 @@ describe('Arrow Shift model', () => {
     expect(solveLevel(initial)).toEqual(['exit', 'pinned', 'regular']);
   });
 
+  it('blocks an arrow path with a barrier and never treats the barrier as a move', () => {
+    const board = state([
+      { id: 'arrow', row: 1, col: 0, direction: 'right' },
+      { id: 'other', row: 0, col: 2, direction: 'up' },
+    ], [{ id: 'b1', row: 1, col: 1 }]);
+    expect(arrowCanExit(board, board.arrows[0])).toBe(false);
+    expect(getAvailableMoves(board).map((arrow) => arrow.id)).toEqual(['other']);
+    expect(applyMove(board, 'b1')).toBeNull();
+  });
+
+  it('lets SHIFT pass through a barrier without changing it', () => {
+    const board = state([
+      { id: 'exit', row: 1, col: 0, direction: 'left' },
+      { id: 'regular', row: 1, col: 2, direction: 'up' },
+    ], [{ id: 'b1', row: 1, col: 1 }]);
+    const result = applyMove(board, 'exit');
+    expect(result.state.arrows[0].direction).toBe('right');
+    expect(result.state.barriers).toEqual([{ id: 'b1', row: 1, col: 1 }]);
+    expect(result.shift.rotatedIds).toEqual(['regular']);
+  });
+
+  it('keeps both pinned arrows and barriers stable during SHIFT', () => {
+    const board = state([
+      { id: 'exit', row: 1, col: 0, direction: 'left' },
+      { id: 'pinned', row: 1, col: 2, direction: 'up', pinned: true },
+      { id: 'regular', row: 1, col: 2, direction: 'right' },
+    ], [{ id: 'b1', row: 1, col: 1 }]);
+    board.arrows[2].row = 2;
+    const result = applyMove(board, 'exit');
+    expect(result.state.arrows.find((arrow) => arrow.id === 'pinned').direction).toBe('up');
+    expect(result.state.barriers).toEqual([{ id: 'b1', row: 1, col: 1 }]);
+    expect(result.shift.heldIds).toEqual(['pinned']);
+  });
+
+  it('wins with barriers left on the board', () => {
+    const board = state([{ id: 'arrow', row: 0, col: 0, direction: 'up' }], [{ id: 'b1', row: 1, col: 1 }]);
+    const result = applyMove(board, 'arrow');
+    expect(getGameStatus(result.state)).toBe('won');
+    expect(result.state.barriers).toEqual([{ id: 'b1', row: 1, col: 1 }]);
+  });
+
+  it('solves a level that uses a barrier as a planning constraint', () => {
+    const initial = createFreshGameState({
+      rows: 4,
+      cols: 4,
+      arrows: [
+        { id: 'exit', row: 1, col: 0, direction: 'left' },
+        { id: 'blocked', row: 1, col: 2, direction: 'left' },
+        { id: 'top', row: 0, col: 3, direction: 'up' },
+      ],
+      barriers: [{ row: 1, col: 1 }],
+    });
+    expect(solveLevel(initial)).toHaveLength(3);
+  });
+
   it('solves all shipped levels', () => {
     expect(LEVELS).toHaveLength(30);
     for (const level of LEVELS) {
@@ -143,8 +198,10 @@ describe('Arrow Shift model', () => {
       expect(new Set(level.arrows.map((arrow) => `${arrow.row},${arrow.col}`)).size).toBe(level.arrows.length);
       expect(solution, `Level ${level.id} should be solvable`).not.toBeNull();
       expect(solution).toHaveLength(level.arrows.length);
+      expect(level.barriers ?? []).toHaveLength(new Set((level.barriers ?? []).map((barrier) => `${barrier.row},${barrier.col}`)).size);
+      expect((level.barriers ?? []).every((barrier) => !level.arrows.some((arrow) => arrow.row === barrier.row && arrow.col === barrier.col))).toBe(true);
       if (level.id < 10) expect(level.arrows.some((arrow) => arrow.pinned)).toBe(false);
-      if (level.id >= 10) expect(level.arrows.some((arrow) => arrow.pinned)).toBe(true);
+      if (level.id >= 24) expect(level.arrows.some((arrow) => arrow.pinned)).toBe(true);
     }
   });
 });

@@ -12,11 +12,13 @@ export function rotateClockwise(direction) {
 }
 
 export function cloneState(state) {
-  return {
+  const cloned = {
     rows: state.rows,
     cols: state.cols,
     arrows: state.arrows.map((arrow) => ({ ...arrow })),
   };
+  if ('barriers' in state) cloned.barriers = (state.barriers ?? []).map((barrier) => ({ ...barrier }));
+  return cloned;
 }
 
 export function createFreshGameState(levelDefinition) {
@@ -24,6 +26,11 @@ export function createFreshGameState(levelDefinition) {
     rows: levelDefinition.rows,
     cols: levelDefinition.cols,
     arrows: levelDefinition.arrows.map((arrow) => ({ ...arrow, pinned: Boolean(arrow.pinned) })),
+    barriers: (levelDefinition.barriers ?? []).map((barrier, index) => ({
+      id: barrier.id ?? `barrier-${index + 1}`,
+      row: barrier.row,
+      col: barrier.col,
+    })),
   };
 }
 
@@ -33,7 +40,7 @@ export function resetState(initialState) {
 
 export function arrowCanExit(state, arrow) {
   const vector = VECTORS[arrow.direction];
-  return !state.arrows.some((other) => {
+  const blockedByArrow = state.arrows.some((other) => {
     if (other.id === arrow.id) return false;
     if (vector.row !== 0 && other.col !== arrow.col) return false;
     if (vector.col !== 0 && other.row !== arrow.row) return false;
@@ -41,6 +48,15 @@ export function arrowCanExit(state, arrow) {
       : vector.row > 0 ? other.row > arrow.row
         : vector.col < 0 ? other.col < arrow.col
           : other.col > arrow.col;
+  });
+  if (blockedByArrow) return false;
+  return !(state.barriers ?? []).some((barrier) => {
+    if (vector.row !== 0 && barrier.col !== arrow.col) return false;
+    if (vector.col !== 0 && barrier.row !== arrow.row) return false;
+    return vector.row < 0 ? barrier.row < arrow.row
+      : vector.row > 0 ? barrier.row > arrow.row
+        : vector.col < 0 ? barrier.col < arrow.col
+          : barrier.col > arrow.col;
   });
 }
 
@@ -88,10 +104,15 @@ export function getGameStatus(state) {
 }
 
 export function stateKey(state) {
-  return state.arrows
+  const arrowsKey = state.arrows
     .map((arrow) => `${arrow.id}:${arrow.row},${arrow.col},${arrow.direction},${arrow.pinned ? 'p' : 'r'}`)
     .sort()
     .join('|');
+  const barriersKey = (state.barriers ?? [])
+    .map((barrier) => `${barrier.row},${barrier.col}`)
+    .sort()
+    .join(';');
+  return `${arrowsKey}||${barriersKey}`;
 }
 
 export function solveLevel(initialState) {

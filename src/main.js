@@ -148,6 +148,17 @@ function createArrowButton(arrow) {
   return button;
 }
 
+function createBarrierTile(barrier) {
+  const tile = document.createElement('div');
+  tile.className = 'barrier-tile';
+  tile.dataset.barrierId = barrier.id;
+  tile.style.gridRow = String(barrier.row + 1);
+  tile.style.gridColumn = String(barrier.col + 1);
+  tile.setAttribute('role', 'img');
+  tile.setAttribute('aria-label', getText(game.language).barrier);
+  return tile;
+}
+
 function createButton(label, className, handler, { action, testId } = {}) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -227,6 +238,7 @@ function render() {
   }
   board.append(gridLines);
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
+  game.state.barriers.forEach((barrier) => board.append(createBarrierTile(barrier)));
   game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
 
   if (game.status !== 'playing') {
@@ -251,6 +263,7 @@ function render() {
   if (game.status === 'playing' && game.levelIndex === 0) hint.textContent = t.firstHint;
   if (game.status === 'playing' && game.levelIndex === 2) hint.textContent = t.shiftHint;
   if (game.status === 'playing' && (game.levelIndex === 9 || game.levelIndex === 10)) hint.textContent = t.pinnedHint;
+  if (game.status === 'playing' && game.levelIndex === 19) hint.textContent = t.barrierHint;
 
   shell.append(header, board, hint);
   app.replaceChildren(shell);

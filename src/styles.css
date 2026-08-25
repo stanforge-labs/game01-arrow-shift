@@ -52,9 +52,9 @@ p, span { margin: 0; }
 .arrow-tile:active { transform: translateY(2px); box-shadow: 0 1px 0 rgb(37 42 39 / 18%); }
 .arrow-icon { --rotation: 0deg; width: 38%; height: 38%; color: var(--ink); transform: rotate(var(--rotation)); transition: transform 240ms cubic-bezier(.2, .8, .25, 1); }
 .arrow-tile.is-pinned { border-color: #b9b1a4; }
-.arrow-tile.is-pinned::before, .arrow-tile.is-pinned::after { content: ""; position: absolute; z-index: 0; width: 9px; height: 3px; border-radius: 1px; background: var(--ink); opacity: .62; }
-.arrow-tile.is-pinned::before { top: 7px; left: 7px; }
-.arrow-tile.is-pinned::after { right: 7px; bottom: 7px; }
+.arrow-tile.is-pinned::before, .arrow-tile.is-pinned::after { content: ""; position: absolute; z-index: 0; top: 50%; width: 4px; height: 20px; border-radius: 2px; background: var(--ink); opacity: .62; transform: translateY(-50%); box-shadow: inset 0 1px rgb(250 248 242 / 35%), inset 0 -1px rgb(37 42 39 / 25%); }
+.arrow-tile.is-pinned::before { left: 6px; }
+.arrow-tile.is-pinned::after { right: 6px; }
 .arrow-tile .arrow-icon { position: relative; z-index: 1; }
 .arrow-icon[data-direction="right"] { --rotation: 90deg; }
 .arrow-icon[data-direction="down"] { --rotation: 180deg; }
@@ -64,6 +64,10 @@ p, span { margin: 0; }
 .arrow-tile.is-rotating { animation: turn-pulse 300ms ease-out; }
 .arrow-tile.is-held { animation: pinned-hold 300ms ease-out; }
 .arrow-tile.is-rotating .arrow-icon { transition-delay: 60ms; }
+.barrier-tile { position: relative; z-index: 1; display: grid; place-self: center; width: calc(100% - 22px); height: calc(100% - 22px); min-width: 22px; min-height: 22px; border: 1px solid #b7ae9f; border-radius: 6px; background: #d6cfc3; box-shadow: inset 0 1px rgb(250 248 242 / 45%), inset 0 -2px rgb(37 42 39 / 13%); cursor: default; }
+.barrier-tile::before, .barrier-tile::after { content: ""; position: absolute; left: 22%; width: 56%; height: 1px; background: rgb(37 42 39 / 30%); transform: rotate(-24deg); }
+.barrier-tile::before { top: 38%; }
+.barrier-tile::after { top: 58%; }
 .board.is-shifting[data-shift-axis="row"]::after { content: ""; position: absolute; z-index: 2; top: var(--shift-line-position); right: 8%; left: 8%; height: 2px; border-radius: 99px; background: var(--accent); animation: line-sweep-row 260ms ease-out; pointer-events: none; }
 .board.is-shifting[data-shift-axis="column"]::after { content: ""; position: absolute; z-index: 2; top: 8%; bottom: 8%; left: var(--shift-line-position); width: 2px; border-radius: 99px; background: var(--accent); animation: line-sweep-column 260ms ease-out; pointer-events: none; }
 
