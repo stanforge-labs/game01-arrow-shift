@@ -20,6 +20,11 @@ const game = {
   pendingPulseTimer: null,
 };
 
+app.addEventListener('click', (event) => {
+  const restartButton = event.target.closest('[data-action="restart"]');
+  if (restartButton && app.contains(restartButton)) resetLevel();
+});
+
 function currentLevel() {
   return LEVELS[game.levelIndex];
 }
@@ -112,12 +117,14 @@ function createArrowButton(arrow) {
   return button;
 }
 
-function createButton(label, className, handler) {
+function createButton(label, className, handler, { action, testId } = {}) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = className;
   button.textContent = label;
-  button.addEventListener('click', handler);
+  if (action) button.dataset.action = action;
+  if (testId) button.dataset.testid = testId;
+  if (handler) button.addEventListener('click', handler);
   return button;
 }
 
@@ -144,7 +151,7 @@ function render() {
       saveProgress(game.levelIndex + 1, game.language);
       render();
     }),
-    createButton(t.restart, 'text-button', resetLevel),
+    createButton(t.restart, 'text-button', null, { action: 'restart', testId: 'restart-button' }),
   );
   header.append(titleGroup, controls);
 
@@ -166,7 +173,7 @@ function render() {
     if (game.status === 'won' && game.levelIndex < LEVELS.length - 1) {
       overlay.append(createButton(t.next, 'primary-button', () => { game.levelIndex += 1; resetLevel(); }));
     } else if (game.status === 'dead-end') {
-      overlay.append(createButton(t.tryAgain, 'primary-button', resetLevel));
+      overlay.append(createButton(t.tryAgain, 'primary-button', null, { action: 'restart', testId: 'dead-end-restart-button' }));
     }
     board.append(overlay);
   }
