@@ -62,12 +62,24 @@ function makeArrowIcon(direction) {
   icon.setAttribute('aria-hidden', 'true');
   icon.setAttribute('viewBox', '0 0 48 48');
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M24 39V11M12 23l12-12 12 12');
+  path.setAttribute('d', 'M24 6 40 23H31v19H17V23H8Z');
+  path.setAttribute('fill', 'currentColor');
+  icon.append(path);
+  return icon;
+}
+
+function makeRestartIcon() {
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('class', 'restart-icon');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M19 8a8 8 0 1 0 1 5M19 8V3m0 5h-5');
   path.setAttribute('fill', 'none');
   path.setAttribute('stroke', 'currentColor');
   path.setAttribute('stroke-linecap', 'round');
   path.setAttribute('stroke-linejoin', 'round');
-  path.setAttribute('stroke-width', '6');
+  path.setAttribute('stroke-width', '1.8');
   icon.append(path);
   return icon;
 }
@@ -148,23 +160,26 @@ function render() {
   header.className = 'topbar';
   const titleGroup = document.createElement('div');
   titleGroup.className = 'title-group';
-  const title = document.createElement('h1');
-  title.textContent = t.gameTitle;
   const level = document.createElement('p');
   level.className = 'level-label';
   level.dataset.testid = 'level-number';
   level.textContent = `${t.level} ${game.levelIndex + 1}`;
-  titleGroup.append(title, level);
+  const progress = document.createElement('span');
+  progress.className = 'progress-label';
+  progress.textContent = `${game.levelIndex + 1} / ${LEVELS.length}`;
+  titleGroup.append(level, progress);
   const controls = document.createElement('div');
   controls.className = 'topbar-controls';
-  controls.append(
-    createButton(t.language, 'text-button language-button', () => {
-      game.language = game.language === 'ru' ? 'en' : 'ru';
-      saveProgress(game.levelIndex + 1, game.language);
-      render();
-    }),
-    createButton(t.restart, 'text-button', null, { action: 'restart', testId: 'restart-button' }),
-  );
+  const languageButton = createButton(t.language, 'text-button language-button', () => {
+    game.language = game.language === 'ru' ? 'en' : 'ru';
+    saveProgress(game.levelIndex + 1, game.language);
+    render();
+  });
+  const restartButton = createButton('', 'text-button restart-button', null, { action: 'restart', testId: 'restart-button' });
+  restartButton.setAttribute('aria-label', t.restart);
+  restartButton.setAttribute('title', t.restart);
+  restartButton.append(makeRestartIcon());
+  controls.append(languageButton, restartButton);
   header.append(titleGroup, controls);
 
   const board = document.createElement('div');
