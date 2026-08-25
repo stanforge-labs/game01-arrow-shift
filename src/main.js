@@ -2,6 +2,7 @@ import './styles.css';
 import { LEVELS } from './game/levels.js';
 import { applyMove, arrowCanExit, createFreshGameState, getGameStatus } from './game/model.js';
 import { getText } from './i18n.js';
+import { getLayoutMetrics } from './layout.js';
 import { getInitialLevelIndex, loadSave, saveProgress } from './storage.js';
 
 const app = document.querySelector('#app');
@@ -35,15 +36,6 @@ app.addEventListener('click', (event) => {
 
 function currentLevel() {
   return LEVELS[game.levelIndex];
-}
-
-function getLayoutMetrics(level) {
-  const gridSize = Math.max(level.rows, level.cols);
-  return {
-    gridSize,
-    boardTarget: 220 + (gridSize * 50),
-    tileSize: 122 - (gridSize * 9),
-  };
 }
 
 function resetLevel() {
@@ -162,10 +154,13 @@ function createButton(label, className, handler, { action, testId } = {}) {
 
 function render() {
   const t = getText(game.language);
-  const layout = getLayoutMetrics(currentLevel());
+  const layout = getLayoutMetrics(currentLevel(), {
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
   const shell = document.createElement('section');
   shell.className = 'game-shell';
-  shell.style.setProperty('--board-target', `${layout.boardTarget}px`);
+  shell.style.setProperty('--board-size', `${layout.boardSize}px`);
   shell.style.setProperty('--tile-size', `${layout.tileSize}px`);
 
   const header = document.createElement('header');
@@ -198,13 +193,29 @@ function render() {
   board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''}`;
   board.style.setProperty('--columns', currentLevel().cols);
   board.style.setProperty('--rows', currentLevel().rows);
+  board.style.setProperty('--cell-size', `${layout.cellSize}px`);
+  board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`);
+  board.style.setProperty('--board-padding', `${layout.boardPadding}px`);
   if (game.shift) {
     board.classList.add('has-shift-line');
     board.dataset.shiftAxis = game.shift.axis;
     board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`);
   }
   board.dataset.testid = 'game-board';
-  board.style.setProperty('--grid-size', layout.gridSize);
+  const gridLines = document.createElement('div');
+  gridLines.className = 'grid-lines';
+  gridLines.setAttribute('aria-hidden', 'true');
+  for (let index = 1; index < layout.gridSize; index += 1) {
+    const vertical = document.createElement('span');
+    vertical.className = 'grid-line grid-line-vertical';
+    vertical.style.left = `${index * layout.cellSize}px`;
+    gridLines.append(vertical);
+    const horizontal = document.createElement('span');
+    horizontal.className = 'grid-line grid-line-horizontal';
+    horizontal.style.top = `${index * layout.cellSize}px`;
+    gridLines.append(horizontal);
+  }
+  board.append(gridLines);
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
   game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
 
@@ -233,5 +244,9 @@ function render() {
   shell.append(header, board, hint);
   app.replaceChildren(shell);
 }
+
+window.addEventListener('resize', () => {
+  if (!game.animating) render();
+});
 
 resetLevel();

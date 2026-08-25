@@ -22,12 +22,12 @@ Arrow Shift uses a modern physical-puzzle language: warm printed-paper page, a s
 | control radius | `10px` |
 | board shadow | `0 7px 0 rgb(37 42 39 / 7%)` |
 | tile shadow | `0 3px 0 rgb(37 42 39 / 15%)` |
-| board size | grid-derived target: `220px + 50px × max(rows, cols)`, capped at `520px` |
-| tile size | grid-derived visual cap: `122px - 9px × max(rows, cols)`, with `44px` interaction minimum |
+| board size | grid-derived target: `220px + 50px × max(rows, cols)`, capped at `520px`, then corrected to integer tracks |
+| tile size | grid-derived visual cap: `120px - 8px × max(rows, cols)`, with `44px` interaction minimum |
 
 ## Surfaces and layout
 
-The board has one border, one surface and an understated grid. No inner frame or blurred halo. Board size derives from the logical grid and available viewport: 3×3 is compact, 6×6 approaches the 520px desktop ceiling, and mobile additionally uses available width and `100dvh`. Header and board share the same calculated width. Tiles align mathematically with cells, are centered with visible cell breathing room, use a grid-derived visual maximum, and stay at least 44px interactive.
+The board has one border, one surface and an understated grid. No inner frame or blurred halo. Board size derives from the logical grid and available viewport: 3×3 is compact, 6×6 approaches the 520px desktop ceiling, and mobile additionally uses available width and `100dvh`. The inner grid is calculated as `cellSize × gridSize` with an integer `cellSize`; the board is corrected by a few pixels when needed. Header and board share the same calculated width. Tiles use the same CSS Grid tracks and are centered with visible cell breathing room, using a grid-derived visual maximum while staying at least 44px interactive.
 
 ## Arrow language
 

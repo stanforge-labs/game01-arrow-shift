@@ -27,8 +27,8 @@ button { font: inherit; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 #app { display: grid; place-items: center; min-height: 100vh; padding: max(24px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
-.game-shell { display: grid; gap: 13px; width: min(var(--board-size, 520px), calc(100vw - 28px), calc(100dvh - 150px)); }
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 0 2px; }
+.game-shell { display: grid; gap: 13px; width: var(--board-size, 520px); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; height: 38px; padding: 0 2px; }
 p, span { margin: 0; }
 .title-group { display: grid; gap: 3px; align-items: baseline; }
 .level-label { color: var(--ink); font-size: 1.2rem; font-weight: 760; letter-spacing: -.035em; line-height: 1.05; }
@@ -41,10 +41,12 @@ p, span { margin: 0; }
 .restart-button { width: 40px; padding: 0; }
 .restart-icon { width: 18px; height: 18px; }
 
-.game-shell { --board-size: min(var(--board-target, 520px), calc(100vw - 28px), calc(100dvh - 150px)); }
-.board { --board-padding: clamp(12px, 4%, 22px); position: relative; display: grid; width: 100%; aspect-ratio: 1 / 1; justify-self: center; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); gap: clamp(8px, 2.2vw, 14px); padding: var(--board-padding); overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-board); background-color: var(--board); box-shadow: var(--shadow-board); }
-.board::before { content: ""; position: absolute; z-index: 0; inset: var(--board-padding); background-image: linear-gradient(to right, var(--grid-line) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px); background-size: calc(100% / var(--columns)) calc(100% / var(--rows)); pointer-events: none; }
-.arrow-tile { position: relative; z-index: 1; display: grid; place-items: center; align-self: center; justify-self: center; width: max(44px, min(var(--tile-size, 68px), calc(100% - clamp(8px, 2vw, 12px)))); height: max(44px, min(var(--tile-size, 68px), calc(100% - clamp(8px, 2vw, 12px)))); min-width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-tile); background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; box-shadow: var(--shadow-tile); transition: background 140ms ease, border-color 140ms ease, opacity 180ms ease, transform 140ms ease, box-shadow 140ms ease; }
+.board { position: relative; display: grid; width: 100%; height: 100%; aspect-ratio: 1 / 1; justify-self: center; grid-template-columns: repeat(var(--columns), var(--cell-size)); grid-template-rows: repeat(var(--rows), var(--cell-size)); gap: 0; padding: var(--board-padding); overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-board); background-color: var(--board); box-shadow: var(--shadow-board); }
+.grid-lines { position: relative; z-index: 0; grid-column: 1 / -1; grid-row: 1 / -1; width: var(--grid-pixel-size); height: var(--grid-pixel-size); pointer-events: none; }
+.grid-line { position: absolute; display: block; background: var(--grid-line); }
+.grid-line-vertical { top: 0; bottom: 0; width: 1px; }
+.grid-line-horizontal { right: 0; left: 0; height: 1px; }
+.arrow-tile { position: relative; z-index: 1; display: grid; place-items: center; align-self: center; justify-self: center; width: max(44px, min(var(--tile-size, 68px), calc(100% - 8px))); height: max(44px, min(var(--tile-size, 68px), calc(100% - 8px))); min-width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-tile); background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; box-shadow: var(--shadow-tile); transition: background 140ms ease, border-color 140ms ease, opacity 180ms ease, transform 140ms ease, box-shadow 140ms ease; }
 .arrow-tile:hover { border-color: #b5ad9f; background: #fffdf8; transform: translateY(-1px); box-shadow: 0 4px 0 rgb(37 42 39 / 17%); }
 .arrow-tile:active { transform: translateY(2px); box-shadow: 0 1px 0 rgb(37 42 39 / 18%); }
 .arrow-icon { --rotation: 0deg; width: 38%; height: 38%; color: var(--ink); transform: rotate(var(--rotation)); transition: transform 240ms cubic-bezier(.2, .8, .25, 1); }
@@ -74,7 +76,6 @@ p, span { margin: 0; }
 
 @media (max-width: 699px) {
   #app { align-items: start; }
-  .game-shell { --board-size: min(calc(var(--board-target, 520px) * .89), calc(100vw - 28px), calc(100dvh - 150px)); }
 }
 
 @media (min-width: 700px) {
