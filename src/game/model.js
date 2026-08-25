@@ -23,7 +23,7 @@ export function createFreshGameState(levelDefinition) {
   return {
     rows: levelDefinition.rows,
     cols: levelDefinition.cols,
-    arrows: levelDefinition.arrows.map((arrow) => ({ ...arrow })),
+    arrows: levelDefinition.arrows.map((arrow) => ({ ...arrow, pinned: Boolean(arrow.pinned) })),
   };
 }
 
@@ -56,19 +56,29 @@ export function applyMove(state, arrowId) {
   next.arrows = next.arrows.filter((item) => item.id !== arrowId);
   const horizontal = arrow.direction === 'left' || arrow.direction === 'right';
   const rotatedIds = [];
+  const heldIds = [];
 
   next.arrows.forEach((item) => {
     const isOnShiftLine = horizontal ? item.row === arrow.row : item.col === arrow.col;
     if (isOnShiftLine) {
-      item.direction = rotateClockwise(item.direction);
-      rotatedIds.push(item.id);
+      if (item.pinned) {
+        heldIds.push(item.id);
+      } else {
+        item.direction = rotateClockwise(item.direction);
+        rotatedIds.push(item.id);
+      }
     }
   });
 
   return {
     state: next,
     exited: { ...arrow },
-    shift: { axis: horizontal ? 'row' : 'column', index: horizontal ? arrow.row : arrow.col, rotatedIds },
+    shift: {
+      axis: horizontal ? 'row' : 'column',
+      index: horizontal ? arrow.row : arrow.col,
+      rotatedIds,
+      heldIds,
+    },
   };
 }
 
@@ -79,7 +89,7 @@ export function getGameStatus(state) {
 
 export function stateKey(state) {
   return state.arrows
-    .map((arrow) => `${arrow.id}:${arrow.row},${arrow.col},${arrow.direction}`)
+    .map((arrow) => `${arrow.id}:${arrow.row},${arrow.col},${arrow.direction},${arrow.pinned ? 'p' : 'r'}`)
     .sort()
     .join('|');
 }

@@ -16,6 +16,7 @@ const game = {
   exitingId: null,
   blockedId: null,
   rotatedIds: [],
+  heldIds: [],
   shift: null,
   pendingExitTimer: null,
   pendingBlockedTimer: null,
@@ -51,6 +52,7 @@ function resetLevel() {
   game.exitingId = null;
   game.blockedId = null;
   game.rotatedIds = [];
+  game.heldIds = [];
   game.shift = null;
   saveProgress(game.levelIndex + 1, game.language);
   render();
@@ -110,6 +112,7 @@ function onArrowClick(arrow) {
     const result = applyMove(game.state, arrow.id);
     game.state = result.state;
     game.rotatedIds = result.shift.rotatedIds;
+    game.heldIds = result.shift.heldIds;
     game.shift = result.shift;
     game.exitingId = null;
     game.status = getGameStatus(game.state);
@@ -118,6 +121,7 @@ function onArrowClick(arrow) {
     game.pendingPulseTimer = window.setTimeout(() => {
       game.pendingPulseTimer = null;
       game.rotatedIds = [];
+      game.heldIds = [];
       game.shift = null;
       render();
     }, 260);
@@ -129,13 +133,16 @@ function createArrowButton(arrow) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'arrow-tile';
+  button.dataset.arrowId = arrow.id;
   button.style.gridRow = String(arrow.row + 1);
   button.style.gridColumn = String(arrow.col + 1);
   button.style.setProperty('--exit-vector', exitVector(arrow.direction));
-  button.setAttribute('aria-label', `${t.arrow}: ${t.direction[arrow.direction]}`);
+  button.setAttribute('aria-label', `${t.arrow}: ${t.direction[arrow.direction]}${arrow.pinned ? `, ${t.pinned}` : ''}`);
+  if (arrow.pinned) button.classList.add('is-pinned');
   if (game.exitingId === arrow.id) button.classList.add('is-exiting');
   if (game.blockedId === arrow.id) button.classList.add('is-blocked');
   if (game.rotatedIds.includes(arrow.id)) button.classList.add('is-rotating');
+  if (game.heldIds.includes(arrow.id)) button.classList.add('is-held');
   button.append(makeArrowIcon(arrow.direction));
   button.addEventListener('click', () => onArrowClick(arrow));
   return button;
@@ -243,6 +250,7 @@ function render() {
   hint.className = 'hint';
   if (game.status === 'playing' && game.levelIndex === 0) hint.textContent = t.firstHint;
   if (game.status === 'playing' && game.levelIndex === 2) hint.textContent = t.shiftHint;
+  if (game.status === 'playing' && (game.levelIndex === 9 || game.levelIndex === 10)) hint.textContent = t.pinnedHint;
 
   shell.append(header, board, hint);
   app.replaceChildren(shell);

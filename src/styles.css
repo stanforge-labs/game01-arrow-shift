@@ -51,12 +51,18 @@ p, span { margin: 0; }
 .arrow-tile:hover { border-color: #b5ad9f; background: #fffdf8; transform: translateY(-1px); box-shadow: 0 4px 0 rgb(37 42 39 / 17%); }
 .arrow-tile:active { transform: translateY(2px); box-shadow: 0 1px 0 rgb(37 42 39 / 18%); }
 .arrow-icon { --rotation: 0deg; width: 38%; height: 38%; color: var(--ink); transform: rotate(var(--rotation)); transition: transform 240ms cubic-bezier(.2, .8, .25, 1); }
+.arrow-tile.is-pinned { border-color: #b9b1a4; }
+.arrow-tile.is-pinned::before, .arrow-tile.is-pinned::after { content: ""; position: absolute; z-index: 0; width: 9px; height: 3px; border-radius: 1px; background: var(--ink); opacity: .62; }
+.arrow-tile.is-pinned::before { top: 7px; left: 7px; }
+.arrow-tile.is-pinned::after { right: 7px; bottom: 7px; }
+.arrow-tile .arrow-icon { position: relative; z-index: 1; }
 .arrow-icon[data-direction="right"] { --rotation: 90deg; }
 .arrow-icon[data-direction="down"] { --rotation: 180deg; }
 .arrow-icon[data-direction="left"] { --rotation: 270deg; }
 .arrow-tile.is-exiting { pointer-events: none; animation: exit 220ms cubic-bezier(.35, .7, .55, 1) forwards; }
 .arrow-tile.is-blocked { border-color: #8e887e; animation: blocked 180ms ease both; }
 .arrow-tile.is-rotating { animation: turn-pulse 300ms ease-out; }
+.arrow-tile.is-held { animation: pinned-hold 300ms ease-out; }
 .arrow-tile.is-rotating .arrow-icon { transition-delay: 60ms; }
 .board.is-shifting[data-shift-axis="row"]::after { content: ""; position: absolute; z-index: 2; top: var(--shift-line-position); right: 8%; left: 8%; height: 2px; border-radius: 99px; background: var(--accent); animation: line-sweep-row 260ms ease-out; pointer-events: none; }
 .board.is-shifting[data-shift-axis="column"]::after { content: ""; position: absolute; z-index: 2; top: 8%; bottom: 8%; left: var(--shift-line-position); width: 2px; border-radius: 99px; background: var(--accent); animation: line-sweep-column 260ms ease-out; pointer-events: none; }
@@ -64,6 +70,7 @@ p, span { margin: 0; }
 @keyframes exit { to { transform: translate(var(--exit-vector)) scale(.85); opacity: 0; } }
 @keyframes blocked { 25%, 65% { transform: translateX(-3px); } 45%, 85% { transform: translateX(3px); } }
 @keyframes turn-pulse { 0%, 100% { border-color: var(--line); } 38% { border-color: var(--accent); } }
+@keyframes pinned-hold { 0%, 100% { border-color: #b9b1a4; transform: translateY(0); } 38% { border-color: var(--ink); transform: translateY(1px); } }
 @keyframes line-sweep-row { from { opacity: 0; transform: translateX(-12%) scaleX(.7); } 35% { opacity: 1; } to { opacity: 0; transform: translateX(12%) scaleX(1); } }
 @keyframes line-sweep-column { from { opacity: 0; transform: translateY(-12%) scaleY(.7); } 35% { opacity: 1; } to { opacity: 0; transform: translateY(12%) scaleY(1); } }
 

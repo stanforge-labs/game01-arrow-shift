@@ -39,6 +39,7 @@ Arrows use one custom filled SVG silhouette rotated for all four directions. The
 - hover/press: one-pixel lift or press, with the shadow changing accordingly;
 - blocked: 180ms nudge and darker neutral border;
 - SHIFT: a thin muted-forest sweep crosses the affected row/column, then affected tokens briefly take the accent border before rotating;
+- pinned: the same token surface with two small graphite clamp marks and a slightly firmer border; during SHIFT it gets a brief hold/nudge state and keeps its direction;
 - reduced motion: transitions and feedback collapse to near-instant while remaining functional.
 
 Accent is reserved for SHIFT, active utility states and success actions. Avoid gradients, glow, excessive rounded cards, decorative uppercase branding, background imagery and AI-looking effects.

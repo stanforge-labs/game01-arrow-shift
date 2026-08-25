@@ -27,7 +27,7 @@ describe('Arrow Shift model', () => {
       { id: 'b', row: 1, col: 1, direction: 'right' },
       { id: 'c', row: 2, col: 1, direction: 'right' },
     ]);
-    expect(result.shift).toEqual({ axis: 'row', index: 1, rotatedIds: ['b'] });
+    expect(result.shift).toEqual({ axis: 'row', index: 1, rotatedIds: ['b'], heldIds: [] });
   });
 
   it('rotates only the remaining arrows in a vertical shift column', () => {
@@ -83,9 +83,54 @@ describe('Arrow Shift model', () => {
     const fresh = createFreshGameState(definition);
     fresh.arrows[0].direction = 'down';
     expect(definition.arrows[0].direction).toBe('up');
-    expect(fresh).toEqual({ rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'down' }] });
+    expect(fresh).toEqual({ rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'down', pinned: false }] });
     expect(getInitialLevelIndex(8, true, 10)).toBe(0);
     expect(getInitialLevelIndex(8, false, 10)).toBe(7);
+  });
+
+  it('rotates regular arrows but holds pinned arrows during SHIFT', () => {
+    const board = state([
+      { id: 'exit', row: 1, col: 0, direction: 'left' },
+      { id: 'pinned', row: 1, col: 1, direction: 'up', pinned: true },
+      { id: 'regular', row: 1, col: 2, direction: 'down' },
+    ]);
+    const result = applyMove(board, 'exit');
+    expect(result.state.arrows).toEqual([
+      { id: 'pinned', row: 1, col: 1, direction: 'up', pinned: true },
+      { id: 'regular', row: 1, col: 2, direction: 'left' },
+    ]);
+    expect(result.shift.rotatedIds).toEqual(['regular']);
+    expect(result.shift.heldIds).toEqual(['pinned']);
+  });
+
+  it('allows a pinned arrow with a clear path to exit and removes it', () => {
+    const board = state([{ id: 'pinned', row: 0, col: 1, direction: 'up', pinned: true }]);
+    expect(getAvailableMoves(board).map((arrow) => arrow.id)).toEqual(['pinned']);
+    const result = applyMove(board, 'pinned');
+    expect(result.state.arrows).toEqual([]);
+    expect(result.exited.pinned).toBe(true);
+  });
+
+  it('treats a pinned arrow as a path blocker', () => {
+    const board = state([
+      { id: 'regular', row: 1, col: 0, direction: 'right' },
+      { id: 'pinned', row: 1, col: 1, direction: 'up', pinned: true },
+    ]);
+    expect(arrowCanExit(board, board.arrows[0])).toBe(false);
+    expect(arrowCanExit(board, board.arrows[1])).toBe(true);
+  });
+
+  it('solves a compact level that depends on a pinned direction', () => {
+    const initial = createFreshGameState({
+      rows: 3,
+      cols: 3,
+      arrows: [
+        { id: 'exit', row: 1, col: 0, direction: 'left' },
+        { id: 'pinned', row: 1, col: 1, direction: 'up', pinned: true },
+        { id: 'regular', row: 1, col: 2, direction: 'right' },
+      ],
+    });
+    expect(solveLevel(initial)).toEqual(['exit', 'pinned', 'regular']);
   });
 
   it('solves all shipped levels', () => {
@@ -98,6 +143,8 @@ describe('Arrow Shift model', () => {
       expect(new Set(level.arrows.map((arrow) => `${arrow.row},${arrow.col}`)).size).toBe(level.arrows.length);
       expect(solution, `Level ${level.id} should be solvable`).not.toBeNull();
       expect(solution).toHaveLength(level.arrows.length);
+      if (level.id < 10) expect(level.arrows.some((arrow) => arrow.pinned)).toBe(false);
+      if (level.id >= 10) expect(level.arrows.some((arrow) => arrow.pinned)).toBe(true);
     }
   });
 });

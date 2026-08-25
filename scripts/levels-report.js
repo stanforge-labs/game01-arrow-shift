@@ -37,6 +37,7 @@ for (const [index, level] of LEVELS.entries()) {
     rows: level.rows,
     cols: level.cols,
     arrows: level.arrows.length,
+    pinned: level.arrows.filter((arrow) => arrow.pinned).length,
     solution: solution?.length ?? '—',
     firstMoves: firstMoves.length,
     solvableFirstMoves,
@@ -44,7 +45,7 @@ for (const [index, level] of LEVELS.entries()) {
 }
 
 for (const item of stats) {
-  console.log(`Level ${item.id} | ${item.rows}x${item.cols} | ${item.arrows} arrows | solution ${item.solution} | first moves ${item.firstMoves} | viable first ${item.solvableFirstMoves}`);
+  console.log(`Level ${item.id} | ${item.rows}x${item.cols} | ${item.arrows} arrows | pinned: ${item.pinned} | solution ${item.solution} | first moves ${item.firstMoves} | viable first ${item.solvableFirstMoves}`);
 }
 
 if (failures.length > 0) {
