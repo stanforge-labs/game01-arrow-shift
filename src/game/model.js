@@ -19,6 +19,10 @@ export function cloneState(state) {
   };
 }
 
+export function resetState(initialState) {
+  return cloneState(initialState);
+}
+
 export function arrowCanExit(state, arrow) {
   const vector = VECTORS[arrow.direction];
   return !state.arrows.some((other) => {

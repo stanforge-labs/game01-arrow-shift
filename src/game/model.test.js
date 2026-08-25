@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from './levels.js';
-import { applyMove, arrowCanExit, getAvailableMoves, getGameStatus, rotateClockwise, solveLevel } from './model.js';
+import { applyMove, arrowCanExit, cloneState, getAvailableMoves, getGameStatus, resetState, rotateClockwise, solveLevel } from './model.js';
 
 const state = (arrows) => ({ rows: 3, cols: 3, arrows });
 
@@ -60,6 +60,21 @@ describe('Arrow Shift model', () => {
     const board = state([{ id: 'a', row: 1, col: 1, direction: 'left' }, { id: 'b', row: 1, col: 0, direction: 'up' }]);
     expect(applyMove(board, 'a')).toBeNull();
     expect(applyMove(board, 'missing')).toBeNull();
+  });
+
+  it('restores a level as a deep copy of its original state', () => {
+    const original = state([
+      { id: 'a', row: 1, col: 0, direction: 'left' },
+      { id: 'b', row: 1, col: 1, direction: 'up' },
+    ]);
+    const changed = applyMove(original, 'a').state;
+    changed.arrows[0].direction = 'down';
+    const reset = resetState(original);
+    expect(reset).toEqual(original);
+    expect(reset).not.toBe(original);
+    expect(reset.arrows[0]).not.toBe(original.arrows[0]);
+    expect(changed).not.toEqual(reset);
+    expect(cloneState(reset)).toEqual(reset);
   });
 
   it('solves all shipped levels', () => {

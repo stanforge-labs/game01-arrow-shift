@@ -1,6 +1,6 @@
 import './styles.css';
 import { LEVELS } from './game/levels.js';
-import { applyMove, arrowCanExit, cloneState, getGameStatus } from './game/model.js';
+import { applyMove, arrowCanExit, getGameStatus, resetState } from './game/model.js';
 import { getText } from './i18n.js';
 import { loadSave, saveProgress } from './storage.js';
 
@@ -15,6 +15,9 @@ const game = {
   exitingId: null,
   blockedId: null,
   rotatedIds: [],
+  pendingExitTimer: null,
+  pendingBlockedTimer: null,
+  pendingPulseTimer: null,
 };
 
 function currentLevel() {
@@ -22,7 +25,13 @@ function currentLevel() {
 }
 
 function resetLevel() {
-  game.state = cloneState(currentLevel());
+  window.clearTimeout(game.pendingExitTimer);
+  window.clearTimeout(game.pendingBlockedTimer);
+  window.clearTimeout(game.pendingPulseTimer);
+  game.pendingExitTimer = null;
+  game.pendingBlockedTimer = null;
+  game.pendingPulseTimer = null;
+  game.state = resetState(currentLevel());
   game.status = 'playing';
   game.animating = false;
   game.exitingId = null;
@@ -58,14 +67,19 @@ function onArrowClick(arrow) {
   if (!arrowCanExit(game.state, arrow)) {
     game.blockedId = arrow.id;
     render();
-    window.setTimeout(() => { game.blockedId = null; render(); }, 280);
+    game.pendingBlockedTimer = window.setTimeout(() => {
+      game.pendingBlockedTimer = null;
+      game.blockedId = null;
+      render();
+    }, 280);
     return;
   }
 
   game.animating = true;
   game.exitingId = arrow.id;
   render();
-  window.setTimeout(() => {
+  game.pendingExitTimer = window.setTimeout(() => {
+    game.pendingExitTimer = null;
     const result = applyMove(game.state, arrow.id);
     game.state = result.state;
     game.rotatedIds = result.shift.rotatedIds;
@@ -73,7 +87,11 @@ function onArrowClick(arrow) {
     game.status = getGameStatus(game.state);
     game.animating = false;
     render();
-    window.setTimeout(() => { game.rotatedIds = []; render(); }, 300);
+    game.pendingPulseTimer = window.setTimeout(() => {
+      game.pendingPulseTimer = null;
+      game.rotatedIds = [];
+      render();
+    }, 300);
   }, 230);
 }
 
@@ -111,9 +129,11 @@ function render() {
   const header = document.createElement('header');
   header.className = 'topbar';
   const titleGroup = document.createElement('div');
+  titleGroup.className = 'title-group';
   const title = document.createElement('h1');
   title.textContent = t.gameTitle;
   const level = document.createElement('p');
+  level.className = 'level-label';
   level.textContent = `${t.level} ${game.levelIndex + 1}`;
   titleGroup.append(title, level);
   const controls = document.createElement('div');
@@ -130,6 +150,8 @@ function render() {
 
   const board = document.createElement('div');
   board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''}`;
+  const boardCells = Math.max(currentLevel().rows, currentLevel().cols);
+  board.style.setProperty('--board-size', boardCells <= 3 ? '360px' : boardCells === 4 ? '430px' : '490px');
   board.style.setProperty('--columns', currentLevel().cols);
   board.style.setProperty('--rows', currentLevel().rows);
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
