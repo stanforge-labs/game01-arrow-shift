@@ -21,9 +21,14 @@ const game = {
 };
 
 app.addEventListener('click', (event) => {
-  const restartButton = event.target.closest('[data-action="restart"]');
-  if (restartButton && app.contains(restartButton)) resetLevel();
-});
+  const restartButton = event.composedPath().find((node) => (
+    node instanceof HTMLButtonElement && node.dataset.action === 'restart'
+  ));
+  if (restartButton && app.contains(restartButton)) {
+    event.preventDefault();
+    resetLevel();
+  }
+}, true);
 
 function currentLevel() {
   return LEVELS[game.levelIndex];
