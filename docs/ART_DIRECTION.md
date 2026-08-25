@@ -44,3 +44,5 @@ Arrows use one custom filled SVG silhouette rotated for all four directions. The
 - reduced motion: transitions and feedback collapse to near-instant while remaining functional.
 
 Accent is reserved for SHIFT, active utility states and success actions. Avoid gradients, glow, excessive rounded cards, decorative uppercase branding, background imagery and AI-looking effects.
+
+Home and level-select screens reuse the same printed-puzzle surfaces: one compact composition, small physical controls and restrained level tokens. Sound controls use simple inline SVG and never introduce decorative icon packs.

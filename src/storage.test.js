@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+import { isLevelUnlocked, normalizeSave } from './storage.js';
+
+describe('progress storage', () => {
+  it('migrates the legacy level field without losing progress', () => {
+    expect(normalizeSave({ saveVersion: 1, level: 8, language: 'en' })).toEqual({
+      saveVersion: 2,
+      language: 'en',
+      soundOn: true,
+      highestUnlockedLevel: 8,
+      lastPlayedLevel: 8,
+    });
+  });
+
+  it('keeps malformed settings safe', () => {
+    expect(normalizeSave({ highestUnlockedLevel: -4, lastPlayedLevel: 'bad', soundOn: false }).highestUnlockedLevel).toBe(1);
+    expect(normalizeSave({ soundOn: false }).soundOn).toBe(false);
+  });
+
+  it('allows every level only in development', () => {
+    expect(isLevelUnlocked(4, 2, false)).toBe(false);
+    expect(isLevelUnlocked(30, 2, true)).toBe(true);
+  });
+});
