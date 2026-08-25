@@ -37,6 +37,15 @@ function currentLevel() {
   return LEVELS[game.levelIndex];
 }
 
+function getLayoutMetrics(level) {
+  const gridSize = Math.max(level.rows, level.cols);
+  return {
+    gridSize,
+    boardTarget: 220 + (gridSize * 50),
+    tileSize: 122 - (gridSize * 9),
+  };
+}
+
 function resetLevel() {
   window.clearTimeout(game.pendingExitTimer);
   window.clearTimeout(game.pendingBlockedTimer);
@@ -153,8 +162,11 @@ function createButton(label, className, handler, { action, testId } = {}) {
 
 function render() {
   const t = getText(game.language);
+  const layout = getLayoutMetrics(currentLevel());
   const shell = document.createElement('section');
   shell.className = 'game-shell';
+  shell.style.setProperty('--board-target', `${layout.boardTarget}px`);
+  shell.style.setProperty('--tile-size', `${layout.tileSize}px`);
 
   const header = document.createElement('header');
   header.className = 'topbar';
@@ -192,6 +204,7 @@ function render() {
     board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`);
   }
   board.dataset.testid = 'game-board';
+  board.style.setProperty('--grid-size', layout.gridSize);
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
   game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
 

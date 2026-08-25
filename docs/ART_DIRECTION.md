@@ -22,11 +22,12 @@ Arrow Shift uses a modern physical-puzzle language: warm printed-paper page, a s
 | control radius | `10px` |
 | board shadow | `0 7px 0 rgb(37 42 39 / 7%)` |
 | tile shadow | `0 3px 0 rgb(37 42 39 / 15%)` |
-| board size | `min(100%, 520px)` |
+| board size | grid-derived target: `220px + 50px × max(rows, cols)`, capped at `520px` |
+| tile size | grid-derived visual cap: `122px - 9px × max(rows, cols)`, with `44px` interaction minimum |
 
 ## Surfaces and layout
 
-The board has one border, one surface and an understated grid. No inner frame or blurred halo. Tiles align mathematically with cells, stay at least 44px high, and use a shorter physical bottom shadow rather than a large soft shadow.
+The board has one border, one surface and an understated grid. No inner frame or blurred halo. Board size derives from the logical grid and available viewport: 3×3 is compact, 6×6 approaches the 520px desktop ceiling, and mobile additionally uses available width and `100dvh`. Header and board share the same calculated width. Tiles align mathematically with cells, are centered with visible cell breathing room, use a grid-derived visual maximum, and stay at least 44px interactive.
 
 ## Arrow language
 
