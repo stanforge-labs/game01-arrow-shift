@@ -165,6 +165,9 @@ function render() {
 
   const header = document.createElement('header');
   header.className = 'topbar';
+  const brand = document.createElement('p');
+  brand.className = 'desktop-brand';
+  brand.textContent = t.gameTitle;
   const titleGroup = document.createElement('div');
   titleGroup.className = 'title-group';
   const level = document.createElement('p');
@@ -187,7 +190,7 @@ function render() {
   restartButton.setAttribute('title', t.restart);
   restartButton.append(makeRestartIcon());
   controls.append(languageButton, restartButton);
-  header.append(titleGroup, controls);
+  header.append(brand, titleGroup, controls);
 
   const board = document.createElement('div');
   board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''}`;

@@ -27,7 +27,7 @@ Arrow Shift uses a modern physical-puzzle language: warm printed-paper page, a s
 
 ## Surfaces and layout
 
-The board has one border, one surface and an understated grid. No inner frame or blurred halo. Board size derives from the logical grid and available viewport: 3×3 is compact, 6×6 approaches the 520px desktop ceiling, and mobile additionally uses available width and `100dvh`. The inner grid is calculated as `cellSize × gridSize` with an integer `cellSize`; the board is corrected by a few pixels when needed. Header and board share the same calculated width. Tiles use the same CSS Grid tracks and are centered with visible cell breathing room, using a grid-derived visual maximum while staying at least 44px interactive.
+The board has one border, one surface and an understated grid. No inner frame or blurred halo. Board size derives from the logical grid and available viewport: 3×3 is compact, 6×6 approaches the 520px desktop ceiling, and mobile additionally uses available width and `100dvh`. The inner grid is calculated as `cellSize × gridSize` with an integer `cellSize`; the board is corrected by a few pixels when needed. Header and board share the same calculated width. Tiles use the same CSS Grid tracks and are centered with visible cell breathing room, using a grid-derived visual maximum while staying at least 44px interactive. Below 1100px the composition is stacked; at 1100px and above gameplay uses a horizontal stage with a plain information rail beside the board, never a shared container card.
 
 ## Arrow language
 

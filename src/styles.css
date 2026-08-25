@@ -30,6 +30,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .game-shell { display: grid; gap: 13px; width: var(--board-size, 520px); }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; height: 38px; padding: 0 2px; }
 p, span { margin: 0; }
+.desktop-brand { display: none; }
 .title-group { display: grid; gap: 3px; align-items: baseline; }
 .level-label { color: var(--ink); font-size: 1.2rem; font-weight: 760; letter-spacing: -.035em; line-height: 1.05; }
 .progress-label { color: var(--muted-ink); font-size: .72rem; font-weight: 650; letter-spacing: .02em; }
@@ -81,6 +82,18 @@ p, span { margin: 0; }
 @media (min-width: 700px) {
   #app { padding: 30px; }
   .game-shell { gap: 15px; }
+}
+
+@media (min-width: 1100px) {
+  #app { align-items: center; }
+  .game-shell { position: relative; top: -18px; grid-template-columns: 240px var(--board-size); grid-template-areas: "rail board" "hint board"; column-gap: 72px; row-gap: 14px; width: calc(240px + 72px + var(--board-size)); align-items: center; }
+  .topbar { grid-area: rail; display: flex; height: auto; min-height: var(--board-size); flex-direction: column; align-items: flex-start; justify-content: center; gap: 18px; padding: 0; }
+  .desktop-brand { display: block; color: var(--ink); font-size: 1.15rem; font-weight: 760; letter-spacing: -.035em; line-height: 1.1; }
+  .title-group { gap: 4px; }
+  .level-label { font-size: 1.55rem; }
+  .topbar-controls { gap: 8px; }
+  .board { grid-area: board; grid-row: 1 / span 2; height: var(--board-size); align-self: center; }
+  .hint { grid-area: hint; min-height: 18px; padding: 0 2px; text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {
