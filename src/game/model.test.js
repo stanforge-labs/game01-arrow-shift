@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS } from './levels.js';
-import { applyMove, arrowCanExit, cloneState, getAvailableMoves, getGameStatus, resetState, rotateClockwise, solveLevel } from './model.js';
+import { applyMove, arrowCanExit, cloneState, createFreshGameState, getAvailableMoves, getGameStatus, resetState, rotateClockwise, solveLevel } from './model.js';
+import { getInitialLevelIndex } from '../storage.js';
 
 const state = (arrows) => ({ rows: 3, cols: 3, arrows });
 
@@ -75,6 +76,16 @@ describe('Arrow Shift model', () => {
     expect(reset.arrows[0]).not.toBe(original.arrows[0]);
     expect(changed).not.toEqual(reset);
     expect(cloneState(reset)).toEqual(reset);
+  });
+
+  it('creates a fresh state from the level definition and resets DEV start to level 1', () => {
+    const definition = { rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'up' }] };
+    const fresh = createFreshGameState(definition);
+    fresh.arrows[0].direction = 'down';
+    expect(definition.arrows[0].direction).toBe('up');
+    expect(fresh).toEqual({ rows: 2, cols: 2, arrows: [{ id: 'a', row: 0, col: 0, direction: 'down' }] });
+    expect(getInitialLevelIndex(8, true, 10)).toBe(0);
+    expect(getInitialLevelIndex(8, false, 10)).toBe(7);
   });
 
   it('solves all shipped levels', () => {

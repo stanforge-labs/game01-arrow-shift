@@ -53,5 +53,7 @@ h1 { color: #748079; font-size: .72rem; font-weight: 800; letter-spacing: .1em; 
 .result-card strong { font-size: 1.35rem; letter-spacing: -.03em; }.primary-button { min-height: 48px; border: 0; border-radius: 14px; padding: 0 18px; background: var(--accent); color: white; cursor: pointer; font-weight: 750; }.primary-button:hover { background: #426958; }
 @keyframes result-in { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .hint { min-height: 20px; color: #647067; text-align: center; font-size: .88rem; }
+.dev-info { display: flex; justify-content: flex-end; gap: 10px; }
+.dev-build, .dev-restart-count { color: #8b918b; font-size: .68rem; letter-spacing: .06em; opacity: .72; }
 @media (min-width: 700px) { #app { padding: 30px; }.game-shell { gap: 22px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; scroll-behavior: auto !important; } }

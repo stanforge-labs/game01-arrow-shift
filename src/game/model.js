@@ -19,6 +19,14 @@ export function cloneState(state) {
   };
 }
 
+export function createFreshGameState(levelDefinition) {
+  return {
+    rows: levelDefinition.rows,
+    cols: levelDefinition.cols,
+    arrows: levelDefinition.arrows.map((arrow) => ({ ...arrow })),
+  };
+}
+
 export function resetState(initialState) {
   return cloneState(initialState);
 }

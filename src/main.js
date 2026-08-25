@@ -1,13 +1,13 @@
 import './styles.css';
 import { LEVELS } from './game/levels.js';
-import { applyMove, arrowCanExit, getGameStatus, resetState } from './game/model.js';
+import { applyMove, arrowCanExit, createFreshGameState, getGameStatus } from './game/model.js';
 import { getText } from './i18n.js';
-import { loadSave, saveProgress } from './storage.js';
+import { getInitialLevelIndex, loadSave, saveProgress } from './storage.js';
 
 const app = document.querySelector('#app');
 const initialSave = loadSave();
 const game = {
-  levelIndex: Math.min(initialSave.level - 1, LEVELS.length - 1),
+  levelIndex: getInitialLevelIndex(initialSave.level, import.meta.env.DEV, LEVELS.length),
   language: initialSave.language,
   state: null,
   status: 'playing',
@@ -18,6 +18,7 @@ const game = {
   pendingExitTimer: null,
   pendingBlockedTimer: null,
   pendingPulseTimer: null,
+  restartCount: 0,
 };
 
 app.addEventListener('click', (event) => {
@@ -26,6 +27,7 @@ app.addEventListener('click', (event) => {
   ));
   if (restartButton && app.contains(restartButton)) {
     event.preventDefault();
+    if (restartButton.dataset.testid === 'restart-button') game.restartCount += 1;
     resetLevel();
   }
 }, true);
@@ -41,7 +43,7 @@ function resetLevel() {
   game.pendingExitTimer = null;
   game.pendingBlockedTimer = null;
   game.pendingPulseTimer = null;
-  game.state = resetState(currentLevel());
+  game.state = createFreshGameState(currentLevel());
   game.status = 'playing';
   game.animating = false;
   game.exitingId = null;
@@ -146,6 +148,7 @@ function render() {
   title.textContent = t.gameTitle;
   const level = document.createElement('p');
   level.className = 'level-label';
+  level.dataset.testid = 'level-number';
   level.textContent = `${t.level} ${game.levelIndex + 1}`;
   titleGroup.append(title, level);
   const controls = document.createElement('div');
@@ -166,6 +169,7 @@ function render() {
   board.style.setProperty('--board-size', boardCells <= 3 ? '360px' : boardCells === 4 ? '430px' : '490px');
   board.style.setProperty('--columns', currentLevel().cols);
   board.style.setProperty('--rows', currentLevel().rows);
+  board.dataset.testid = 'game-board';
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
   game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
 
@@ -188,6 +192,19 @@ function render() {
   if (game.levelIndex === 2 && game.status === 'playing') hint.textContent = t.shiftHint;
 
   shell.append(header, board, hint);
+  if (import.meta.env.DEV) {
+    const devInfo = document.createElement('div');
+    devInfo.className = 'dev-info';
+    const devBuild = document.createElement('small');
+    devBuild.className = 'dev-build';
+    devBuild.textContent = 'DEV 4474005';
+    const devRestartCount = document.createElement('small');
+    devRestartCount.className = 'dev-restart-count';
+    devRestartCount.dataset.testid = 'dev-restart-count';
+    devRestartCount.textContent = `Restart: ${game.restartCount}`;
+    devInfo.append(devBuild, devRestartCount);
+    shell.append(devInfo);
+  }
   app.replaceChildren(shell);
 }
 

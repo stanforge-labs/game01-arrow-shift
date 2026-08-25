@@ -1,6 +1,11 @@
 const STORAGE_KEY = 'arrow-shift-save';
 const SAVE_VERSION = 1;
 
+export function getInitialLevelIndex(savedLevel, isDev, levelCount) {
+  if (isDev) return 0;
+  return Math.min(Math.max(savedLevel - 1, 0), levelCount - 1);
+}
+
 export function loadSave() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
