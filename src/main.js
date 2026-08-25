@@ -15,6 +15,7 @@ const game = {
   exitingId: null,
   blockedId: null,
   rotatedIds: [],
+  shift: null,
   pendingExitTimer: null,
   pendingBlockedTimer: null,
   pendingPulseTimer: null,
@@ -49,6 +50,7 @@ function resetLevel() {
   game.exitingId = null;
   game.blockedId = null;
   game.rotatedIds = [];
+  game.shift = null;
   saveProgress(game.levelIndex + 1, game.language);
   render();
 }
@@ -83,7 +85,7 @@ function onArrowClick(arrow) {
       game.pendingBlockedTimer = null;
       game.blockedId = null;
       render();
-    }, 280);
+    }, 220);
     return;
   }
 
@@ -95,6 +97,7 @@ function onArrowClick(arrow) {
     const result = applyMove(game.state, arrow.id);
     game.state = result.state;
     game.rotatedIds = result.shift.rotatedIds;
+    game.shift = result.shift;
     game.exitingId = null;
     game.status = getGameStatus(game.state);
     game.animating = false;
@@ -102,9 +105,10 @@ function onArrowClick(arrow) {
     game.pendingPulseTimer = window.setTimeout(() => {
       game.pendingPulseTimer = null;
       game.rotatedIds = [];
+      game.shift = null;
       render();
-    }, 300);
-  }, 230);
+    }, 260);
+  }, 220);
 }
 
 function createArrowButton(arrow) {
@@ -165,10 +169,13 @@ function render() {
 
   const board = document.createElement('div');
   board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''}`;
-  const boardCells = Math.max(currentLevel().rows, currentLevel().cols);
-  board.style.setProperty('--board-size', boardCells <= 3 ? '360px' : boardCells === 4 ? '430px' : '490px');
   board.style.setProperty('--columns', currentLevel().cols);
   board.style.setProperty('--rows', currentLevel().rows);
+  if (game.shift) {
+    board.classList.add('has-shift-line');
+    board.dataset.shiftAxis = game.shift.axis;
+    board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`);
+  }
   board.dataset.testid = 'game-board';
   board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`);
   game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
@@ -189,22 +196,10 @@ function render() {
 
   const hint = document.createElement('p');
   hint.className = 'hint';
-  if (game.levelIndex === 2 && game.status === 'playing') hint.textContent = t.shiftHint;
+  if (game.status === 'playing' && game.levelIndex === 0) hint.textContent = t.firstHint;
+  if (game.status === 'playing' && game.levelIndex === 2) hint.textContent = t.shiftHint;
 
   shell.append(header, board, hint);
-  if (import.meta.env.DEV) {
-    const devInfo = document.createElement('div');
-    devInfo.className = 'dev-info';
-    const devBuild = document.createElement('small');
-    devBuild.className = 'dev-build';
-    devBuild.textContent = 'DEV 4474005';
-    const devRestartCount = document.createElement('small');
-    devRestartCount.className = 'dev-restart-count';
-    devRestartCount.dataset.testid = 'dev-restart-count';
-    devRestartCount.textContent = `Restart: ${game.restartCount}`;
-    devInfo.append(devBuild, devRestartCount);
-    shell.append(devInfo);
-  }
   app.replaceChildren(shell);
 }
 
