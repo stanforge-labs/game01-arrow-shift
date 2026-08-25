@@ -11,3 +11,5 @@ From level 20 the set adds **Barriers**. A barrier occupies a cell, has no direc
 A level is complete when no arrows remain. If arrows remain and none can exit, it is a dead end. The first playable set contains thirty solver-validated levels, local progress, Russian and English UI, and no SDK, ads, shop or backend.
 
 The product shell uses three in-app screens: Home, Levels and Game. Home offers Play/Continue, level selection, language and sound controls. Levels shows completed, unlocked and locked level tokens; in development all levels are selectable. Production progress stores the highest unlocked level and the last played level without saving an unfinished puzzle state. Web Audio provides short procedural tactile SFX and can be disabled in settings.
+
+Gameplay result states share one ResultCard flow: a solid card centered over the board, a readable title, then full-width primary and secondary actions. Utility navigation uses the same custom SVG controls on every screen.

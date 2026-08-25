@@ -95,17 +95,27 @@ function makeArrowIcon(direction) {
 
 function makeRestartIcon() {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); icon.setAttribute('class', 'restart-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M19 8a8 8 0 1 0 1 5M19 8V3m0 5h-5'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.8'); icon.append(path); return icon;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M19 8a8 8 0 1 0 1 5M19 8V3m0 5h-5'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.9'); icon.append(path); return icon;
 }
 
 function makeHomeIcon() {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); icon.setAttribute('class', 'home-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1Z'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.7'); icon.append(path); return icon;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-5H9v5H5a1 1 0 0 1-1-1Z'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.9'); icon.append(path); return icon;
 }
 
-function makeSoundIcon() {
+function makeSoundIcon(isOn = true) {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); icon.setAttribute('class', 'sound-icon'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M4 10v4h4l5 4V6l-5 4Zm12 0a4 4 0 0 1 0 4m2-6a7 7 0 0 1 0 8'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.6'); icon.append(path); return icon;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M4 10v4h4l5 4V6l-5 4Zm12 0a4 4 0 0 1 0 4m2-6a7 7 0 0 1 0 8'); path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.9'); icon.append(path);
+  if (!isOn) { const mute = document.createElementNS('http://www.w3.org/2000/svg', 'path'); mute.setAttribute('d', 'm16 8 5 5m0-5-5 5'); mute.setAttribute('fill', 'none'); mute.setAttribute('stroke', 'currentColor'); mute.setAttribute('stroke-linecap', 'round'); mute.setAttribute('stroke-linejoin', 'round'); mute.setAttribute('stroke-width', '1.9'); icon.append(mute); }
+  return icon;
+}
+
+function makeDirectionMotif() {
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('class', 'home-motif'); icon.setAttribute('viewBox', '0 0 96 20'); icon.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M4 10h12m-4-4 4 4-4 4M28 16V4m-4 4 4-4 4 4M52 10H40m4-4-4 4 4 4M76 4v12m-4-4 4 4 4-4');
+  path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.4'); icon.append(path); return icon;
 }
 
 function exitVector(direction) { return ({ up: '0,-150%', right: '150%,0', down: '0,150%', left: '-150%,0' })[direction]; }
@@ -126,7 +136,7 @@ function onArrowClick(arrow) {
     game.pendingBlockedTimer = window.setTimeout(() => { game.pendingBlockedTimer = null; game.blockedId = null; render(); }, 220);
     return;
   }
-  audio.play('tap');
+  audio.play('tilePress');
   game.animating = true; game.exitingId = arrow.id; render();
   game.pendingExitTimer = window.setTimeout(() => {
     game.pendingExitTimer = null;
@@ -145,22 +155,22 @@ function createArrowButton(arrow) {
 
 function createBarrierTile(barrier) { const tile = document.createElement('div'); tile.className = 'barrier-tile'; tile.dataset.barrierId = barrier.id; tile.style.gridRow = String(barrier.row + 1); tile.style.gridColumn = String(barrier.col + 1); tile.setAttribute('role', 'img'); tile.setAttribute('aria-label', getText(game.language).barrier); return tile; }
 
-function createButton(label, className, handler, { action, testId } = {}) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.textContent = label; if (action) button.dataset.action = action; if (testId) button.dataset.testid = testId; if (handler) button.addEventListener('click', handler); return button; }
+function createButton(label, className, handler, { action, testId, playClick = true } = {}) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.textContent = label; if (action) button.dataset.action = action; if (testId) button.dataset.testid = testId; if (handler) button.addEventListener('click', () => { if (playClick) audio.play('uiClick'); handler(); }); return button; }
 
-function createIconButton(label, icon, className, handler, testId) { const button = createButton('', `${className} icon-button`, handler, { testId }); button.append(icon); button.setAttribute('aria-label', label); button.title = label; return button; }
+function createIconButton(label, icon, className, handler, testId, playClick = true) { const button = createButton('', `${className} icon-button`, handler, { testId, playClick }); button.append(icon); button.setAttribute('aria-label', label); button.title = label; return button; }
 
 function toggleLanguage() { game.language = game.language === 'ru' ? 'en' : 'ru'; persist(); render(); }
-function toggleSound() { game.soundOn = !game.soundOn; audio.setEnabled(game.soundOn); persist(); render(); }
+function toggleSound() { const nextValue = !game.soundOn; if (nextValue) { game.soundOn = true; audio.setEnabled(true); audio.play('uiClick'); } else { audio.play('uiClick'); game.soundOn = false; audio.setEnabled(false); } persist(); render(); }
 
 function renderHomeScreen() {
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell home-screen';
   const wordmark = document.createElement('h1'); wordmark.className = 'home-wordmark'; wordmark.textContent = t.gameTitle;
-  const motif = document.createElement('div'); motif.className = 'home-motif'; motif.textContent = '→  ↓  ←  ↑';
+  const motif = makeDirectionMotif();
   const hasProgress = game.highestUnlockedLevel > 1 || game.levelIndex > 0;
   const progress = document.createElement('p'); progress.className = 'home-progress'; progress.textContent = hasProgress ? `${t.level} ${game.levelIndex + 1}` : '';
   const actions = document.createElement('div'); actions.className = 'menu-actions';
   actions.append(createButton(hasProgress ? t.continue : t.play, 'primary-button menu-primary', () => startLevel(game.levelIndex), { testId: 'home-primary-button' }), createButton(t.levels, 'secondary-button', goLevels, { testId: 'home-levels-button' }));
-  const controls = document.createElement('div'); controls.className = 'menu-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle'));
+  const controls = document.createElement('div'); controls.className = 'menu-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle', false));
   shell.append(wordmark, motif, progress, actions, controls); app.replaceChildren(shell);
 }
 
@@ -168,7 +178,7 @@ function renderLevelsScreen() {
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell levels-screen';
   const header = document.createElement('div'); header.className = 'menu-header'; header.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'levels-home-button'));
   const title = document.createElement('h1'); title.textContent = t.levels; header.append(title);
-  const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle')); header.append(controls);
+  const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle', false)); header.append(controls);
   const grid = document.createElement('div'); grid.className = 'level-grid';
   for (let index = 0; index < LEVELS.length; index += 1) {
     const levelNumber = index + 1; const unlocked = isLevelUnlocked(levelNumber, game.highestUnlockedLevel, import.meta.env.DEV); const button = createButton(String(levelNumber).padStart(2, '0'), 'level-token', () => startLevel(index), { testId: `level-button-${levelNumber}` }); button.dataset.level = String(levelNumber); button.setAttribute('aria-label', unlocked ? `${t.level} ${levelNumber}` : `${t.level} ${levelNumber}, ${t.locked}`); if (!unlocked) { button.disabled = true; button.classList.add('is-locked'); } else if (levelNumber < game.highestUnlockedLevel) button.classList.add('is-completed'); else if (levelNumber === game.levelIndex + 1) button.classList.add('is-current'); grid.append(button);
@@ -176,11 +186,32 @@ function renderLevelsScreen() {
   shell.append(header, grid); app.replaceChildren(shell);
 }
 
+function createResultCard() {
+  const t = getText(game.language);
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.dataset.testid = 'result-card';
+  const finalVictory = game.status === 'won' && game.levelIndex === LEVELS.length - 1;
+  const message = document.createElement('strong');
+  message.textContent = finalVictory ? t.allLevelsCompleted : game.status === 'won' ? t.done : t.noMoves;
+  card.append(message);
+  if (game.status === 'won' && !finalVictory) {
+    card.append(createButton(t.next, 'primary-button', () => startLevel(game.levelIndex + 1)));
+    card.append(createButton(t.levels, 'secondary-button result-secondary', goLevels));
+  } else if (finalVictory) {
+    card.append(createButton(t.levels, 'primary-button', goLevels));
+    card.append(createButton(t.startOver, 'secondary-button result-secondary', () => startLevel(0), { testId: 'start-over-button' }));
+  } else if (game.status === 'dead-end') {
+    card.append(createButton(t.tryAgain, 'primary-button', resetLevel, { testId: 'dead-end-restart-button' }));
+  }
+  return card;
+}
+
 function renderGameScreen() {
   const t = getText(game.language); const layout = getLayoutMetrics(currentLevel(), { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`);
   const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = t.gameTitle; const titleGroup = document.createElement('div'); titleGroup.className = 'title-group'; const level = document.createElement('p'); level.className = 'level-label'; level.dataset.testid = 'level-number'; level.textContent = `${t.level} ${game.levelIndex + 1}`; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = `${game.levelIndex + 1} / ${LEVELS.length}`; titleGroup.append(level, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(t.restart, makeRestartIcon(), 'restart-button', resetLevel, 'restart-button')); header.append(brand, titleGroup, controls);
-  const board = document.createElement('div'); board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''}`; board.style.setProperty('--columns', currentLevel().cols); board.style.setProperty('--rows', currentLevel().rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); if (game.shift) { board.classList.add('has-shift-line'); board.dataset.shiftAxis = game.shift.axis; board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`); } board.dataset.testid = 'game-board'; const gridLines = document.createElement('div'); gridLines.className = 'grid-lines'; gridLines.setAttribute('aria-hidden', 'true'); for (let index = 1; index < layout.gridSize; index += 1) { const vertical = document.createElement('span'); vertical.className = 'grid-line grid-line-vertical'; vertical.style.left = `${index * layout.cellSize}px`; gridLines.append(vertical); const horizontal = document.createElement('span'); horizontal.className = 'grid-line grid-line-horizontal'; horizontal.style.top = `${index * layout.cellSize}px`; gridLines.append(horizontal); } board.append(gridLines); board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`); game.state.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
-  if (game.status !== 'playing') { const overlay = document.createElement('div'); overlay.className = 'result-card'; const message = document.createElement('strong'); const finalVictory = game.status === 'won' && game.levelIndex === LEVELS.length - 1; message.textContent = finalVictory ? t.allLevelsCompleted : game.status === 'won' ? t.done : t.noMoves; overlay.append(message); if (game.status === 'won' && !finalVictory) { overlay.append(createButton(t.next, 'primary-button', () => startLevel(game.levelIndex + 1)), createButton(t.levels, 'secondary-button result-secondary', goLevels)); } else if (finalVictory) { overlay.append(createButton(t.levels, 'primary-button', goLevels), createButton(t.startOver, 'secondary-button result-secondary', () => startLevel(0), { testId: 'start-over-button' })); } else if (game.status === 'dead-end') overlay.append(createButton(t.tryAgain, 'primary-button', resetLevel, { testId: 'dead-end-restart-button' })); board.append(overlay); }
+  const board = document.createElement('div'); board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''} ${game.status !== 'playing' ? 'has-result' : ''}`; board.style.setProperty('--columns', currentLevel().cols); board.style.setProperty('--rows', currentLevel().rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); if (game.shift) { board.classList.add('has-shift-line'); board.dataset.shiftAxis = game.shift.axis; board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`); } board.dataset.testid = 'game-board'; const gridLines = document.createElement('div'); gridLines.className = 'grid-lines'; gridLines.setAttribute('aria-hidden', 'true'); for (let index = 1; index < layout.gridSize; index += 1) { const vertical = document.createElement('span'); vertical.className = 'grid-line grid-line-vertical'; vertical.style.left = `${index * layout.cellSize}px`; gridLines.append(vertical); const horizontal = document.createElement('span'); horizontal.className = 'grid-line grid-line-horizontal'; horizontal.style.top = `${index * layout.cellSize}px`; gridLines.append(horizontal); } board.append(gridLines); board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`); game.state.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
+  if (game.status !== 'playing') { board.dataset.resultStatus = game.status; board.append(createResultCard()); }
   const hint = document.createElement('p'); hint.className = 'hint'; if (game.status === 'playing' && game.levelIndex === 0) hint.textContent = t.firstHint; if (game.status === 'playing' && game.levelIndex === 2) hint.textContent = t.shiftHint; if (game.status === 'playing' && (game.levelIndex === 9 || game.levelIndex === 10)) hint.textContent = t.pinnedHint; if (game.status === 'playing' && game.levelIndex === 19) hint.textContent = t.barrierHint; shell.append(header, board, hint); app.replaceChildren(shell);
 }
 

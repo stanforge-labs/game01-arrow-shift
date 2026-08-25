@@ -46,3 +46,5 @@ Arrows use one custom filled SVG silhouette rotated for all four directions. The
 Accent is reserved for SHIFT, active utility states and success actions. Avoid gradients, glow, excessive rounded cards, decorative uppercase branding, background imagery and AI-looking effects.
 
 Home and level-select screens reuse the same printed-puzzle surfaces: one compact composition, small physical controls and restrained level tokens. Sound controls use simple inline SVG and never introduce decorative icon packs.
+
+Utility controls share one inline SVG language (`viewBox 0 0 24 24`, round 1.9px strokes, currentColor): home, restart and sound on/off use the same 44px tactile button. Result cards use a solid surface, a single vertical flow and full-width actions; no title or button is absolutely positioned. Procedural audio is short and dry: a layered UI click, a lower tile press, a compact exit snap, a restrained SHIFT sweep and muted blocked/pinned/barrier responses, all routed through one compressed master bus.
