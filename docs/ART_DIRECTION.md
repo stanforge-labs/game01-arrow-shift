@@ -8,7 +8,7 @@ Calm modern casual puzzle: warm paper-like background, soft tactile tiles, compa
 | surface | `#fffdf8` |
 | surface-soft | `#f8f4ec` |
 | board | `#ebe5db` |
-| board-grid | `rgb(67 68 60 / 5%)` |
+| board-grid | `rgb(67 68 60 / 3.5%)` |
 | text | `#2c302d` |
 | arrow | `#303632` |
 | accent | `#4f7b6a` |

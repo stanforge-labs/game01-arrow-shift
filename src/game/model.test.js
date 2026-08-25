@@ -89,8 +89,13 @@ describe('Arrow Shift model', () => {
   });
 
   it('solves all shipped levels', () => {
+    expect(LEVELS).toHaveLength(30);
     for (const level of LEVELS) {
-      const solution = solveLevel(level);
+      const initial = createFreshGameState(level);
+      const solution = solveLevel(initial);
+      expect(getGameStatus(initial)).toBe('playing');
+      expect(getAvailableMoves(initial).length).toBeGreaterThan(0);
+      expect(new Set(level.arrows.map((arrow) => `${arrow.row},${arrow.col}`)).size).toBe(level.arrows.length);
       expect(solution, `Level ${level.id} should be solvable`).not.toBeNull();
       expect(solution).toHaveLength(level.arrows.length);
     }

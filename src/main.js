@@ -184,10 +184,13 @@ function render() {
     const overlay = document.createElement('div');
     overlay.className = 'result-card';
     const message = document.createElement('strong');
-    message.textContent = game.status === 'won' ? t.done : t.noMoves;
+    const finalVictory = game.status === 'won' && game.levelIndex === LEVELS.length - 1;
+    message.textContent = finalVictory ? t.allDone : game.status === 'won' ? t.done : t.noMoves;
     overlay.append(message);
     if (game.status === 'won' && game.levelIndex < LEVELS.length - 1) {
       overlay.append(createButton(t.next, 'primary-button', () => { game.levelIndex += 1; resetLevel(); }));
+    } else if (finalVictory) {
+      overlay.append(createButton(t.startOver, 'primary-button', () => { game.levelIndex = 0; resetLevel(); }, { testId: 'start-over-button' }));
     } else if (game.status === 'dead-end') {
       overlay.append(createButton(t.tryAgain, 'primary-button', null, { action: 'restart', testId: 'dead-end-restart-button' }));
     }
