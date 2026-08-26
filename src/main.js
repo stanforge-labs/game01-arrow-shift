@@ -9,7 +9,9 @@ import { ROUTE_LEVELS } from './route/levels.js';
 import { createRouteState, rotateRouteArrow, simulateRoute } from './route/model.js';
 import { RUSH_TEMPLATES, nextRushTemplateIndex } from './rush/levels.js';
 import { RUSH_DURATION, createRushSession, finishRush, recordRushBlocked, recordRushBoardClear, recordRushExit, tickRush } from './rush/model.js';
-import { gameReady, gameplayStart, gameplayStop, getPlatformLanguage, initPlatform } from './platform/yandex.js';
+import { gameReady, gameplayStart, gameplayStop, getCloudData, getPlatformLanguage, initPlatform, isPlayerAvailable, setCloudData, showFullscreenAd } from './platform/yandex.js';
+import { createAdGate } from './platform/adGate.js';
+import { createCloudSaveManager } from './save/cloudSave.js';
 
 const app = document.querySelector('#app');
 const initialSave = loadSave();
@@ -69,9 +71,58 @@ const game = {
   rushHistory: [],
   platformPaused: false,
   gameplayBeforePause: false,
+  adRequestInFlight: false,
+  cloudStatus: 'local',
 };
 audio.setSfxEnabled(game.sfxOn);
 audio.setMusicEnabled(game.musicOn);
+
+const adTestMode = import.meta.env.DEV && new URLSearchParams(window.location.search).get('adTest') === '1';
+const adGate = createAdGate({ minSessionMs: adTestMode ? 0 : 90_000, cooldownMs: adTestMode ? 0 : 120_000, minCompletions: adTestMode ? 0 : 2 });
+let rushResultPreviewPending = import.meta.env.DEV && new URLSearchParams(window.location.search).get('rushResult') === '1';
+let cloudSaveManager = null;
+
+function getProgressSnapshot() {
+  return {
+    highestUnlockedLevel: game.highestUnlockedLevel,
+    highestUnlockedRoute: game.highestUnlockedRoute,
+    routeBestRotations: game.routeBestRotations,
+    rushBestScore: game.rushBestScore,
+    rushBestBoards: game.rushBestBoards,
+  };
+}
+
+function applyCloudProgress(progress) {
+  game.highestUnlockedLevel = Math.min(Math.max(progress.highestUnlockedLevel || 1, 1), LEVELS.length);
+  game.highestUnlockedRoute = Math.min(Math.max(progress.highestUnlockedRoute || 1, 1), ROUTE_LEVELS.length);
+  game.routeBestRotations = { ...game.routeBestRotations, ...(progress.routeBestRotations || {}) };
+  game.rushBestScore = Math.max(game.rushBestScore, progress.rushBestScore || 0);
+  game.rushBestBoards = Math.max(game.rushBestBoards, progress.rushBestBoards || 0);
+  persist();
+  if (game.screen !== 'boot') render();
+}
+
+function markProgressDirty(completed = false) {
+  if (completed) adGate.recordCompletion();
+  cloudSaveManager?.markDirty();
+}
+
+async function runOptionalAdThen(action) {
+  if (game.adRequestInFlight) return;
+  game.adRequestInFlight = true;
+  render();
+  let result = { supported: false, shown: false };
+  if (adGate.canRequest()) {
+    result = await showFullscreenAd({
+      onOpen: () => addPauseReason('ad'),
+      onClose: () => removePauseReason('ad'),
+      onError: () => removePauseReason('ad'),
+    });
+    if (result.shown) adGate.recordShown();
+  }
+  game.adRequestInFlight = false;
+  action();
+}
 
 function startRushTimer() {
   if (game.rushTimer || !game.rushSession || game.rushStatus !== 'playing' || game.platformPaused) return;
@@ -100,7 +151,8 @@ function resumeGameplay() {
   if (!game.platformPaused) return;
   game.platformPaused = false;
   audio.resumeAll('platform');
-  if (game.gameplayBeforePause && game.screen === 'game' && document.visibilityState !== 'hidden') {
+  const playableScreen = game.screen === 'game' && game.status === 'playing' && game.rushStatus !== 'ended' && game.routeStatus !== 'success';
+  if ((game.gameplayBeforePause || playableScreen) && document.visibilityState !== 'hidden') {
     if (game.mode === 'rush') startRushTimer();
     if (game.mode === 'route' && game.routeStatus === 'running') scheduleRouteAdvance();
     gameplayStart();
@@ -161,12 +213,13 @@ function resetLevel() {
   game.shift = null;
   persist();
   render();
+  adGate.recordGameplayStart();
   if (!game.platformPaused) gameplayStart();
 }
 
 function startLevel(index) {
   if (!Number.isInteger(index) || index < 0 || index >= LEVELS.length) return;
-  if (!isLevelUnlocked(index + 1, game.highestUnlockedLevel, import.meta.env.DEV)) return;
+  if (game.adRequestInFlight || !isLevelUnlocked(index + 1, game.highestUnlockedLevel, import.meta.env.DEV)) return;
   game.levelIndex = index;
   game.mode = 'puzzle';
   game.lastPlayedPuzzleLevel = index + 1;
@@ -176,17 +229,20 @@ function startLevel(index) {
 
 function startRoute(index) {
   if (!Number.isInteger(index) || index < 0 || index >= ROUTE_LEVELS.length) return;
-  if (!isLevelUnlocked(index + 1, game.highestUnlockedRoute, import.meta.env.DEV)) return;
+  if (game.adRequestInFlight || !isLevelUnlocked(index + 1, game.highestUnlockedRoute, import.meta.env.DEV)) return;
   clearTimers();
-  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; game.screen = 'game'; render(); if (!game.platformPaused) gameplayStart();
+  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; game.screen = 'game'; render(); adGate.recordGameplayStart(); if (!game.platformPaused) gameplayStart();
 }
 
 function startRush() {
+  if (game.adRequestInFlight) return;
   clearTimers();
-  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.status = 'playing'; game.animating = false; game.exitingId = null; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = false; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); audio.startMusic(); audio.play('rushStart');
+  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.status = 'playing'; game.animating = false; game.exitingId = null; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = false; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); if (!game.platformPaused) { audio.startMusic(); audio.play('rushStart'); }
+  adGate.recordGameplayStart();
   startRushTimer();
   render();
   if (!game.platformPaused) gameplayStart();
+  if (rushResultPreviewPending) { rushResultPreviewPending = false; window.setTimeout(endRush, 40); }
 }
 
 function goHome() {
@@ -222,6 +278,7 @@ function finishRoute(status, reason) {
     const oldBest = game.routeBestRotations[levelNumber];
     if (oldBest === undefined || oldBest === 0 || game.routeState.rotationsUsed < oldBest) game.routeBestRotations[levelNumber] = game.routeState.rotationsUsed;
     persist();
+    markProgressDirty(true);
     audio.play('routeSuccess');
   } else {
     audio.play('routeFail');
@@ -274,7 +331,8 @@ function loadNextRushBoard() {
 function endRush() {
   const previousBest = game.rushBestScore;
   gameplayStop(); clearTimers(); game.rushSession = finishRush(game.rushSession); game.rushStatus = 'ended'; game.rushNewBest = game.rushSession.score > previousBest;
-  game.rushBestScore = Math.max(game.rushBestScore, game.rushSession.score); game.rushBestBoards = Math.max(game.rushBestBoards, game.rushSession.boards); persist(); audio.play('rushEnd'); render();
+  const previousBoards = game.rushBestBoards;
+  game.rushBestScore = Math.max(game.rushBestScore, game.rushSession.score); game.rushBestBoards = Math.max(game.rushBestBoards, game.rushSession.boards); persist(); adGate.recordCompletion(); if (game.rushSession.score > previousBest || game.rushSession.boards > previousBoards) markProgressDirty(); audio.play('rushEnd'); render();
 }
 
 function onRushArrowClick(arrow) {
@@ -342,7 +400,7 @@ function onArrowClick(arrow) {
     game.pendingExitTimer = null;
     const result = applyMove(game.state, arrow.id);
     game.state = result.state; game.rotatedIds = result.shift.rotatedIds; game.heldIds = result.shift.heldIds; game.shift = result.shift; game.exitingId = null; game.status = getGameStatus(game.state); game.animating = false;
-    audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); if (result.shift.heldIds.length) { audio.play('pinnedHold'); haptic(18); } if (game.status === 'won') { gameplayStop(); audio.play('victory'); game.highestUnlockedLevel = Math.max(game.highestUnlockedLevel, Math.min(game.levelIndex + 2, LEVELS.length)); persist(); } else if (game.status === 'dead-end') gameplayStop();
+    audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); if (result.shift.heldIds.length) { audio.play('pinnedHold'); haptic(18); } if (game.status === 'won') { gameplayStop(); audio.play('victory'); game.highestUnlockedLevel = Math.max(game.highestUnlockedLevel, Math.min(game.levelIndex + 2, LEVELS.length)); persist(); markProgressDirty(true); } else if (game.status === 'dead-end') gameplayStop();
     render();
     game.pendingPulseTimer = window.setTimeout(() => { game.pendingPulseTimer = null; game.rotatedIds = []; game.heldIds = []; game.shift = null; render(); }, 260);
   }, 220);
@@ -437,7 +495,7 @@ function createResultCard() {
   message.textContent = finalVictory ? t.allLevelsCompleted : game.status === 'won' ? t.done : t.noMoves;
   card.append(message);
   if (game.status === 'won' && !finalVictory) {
-    card.append(createButton(t.next, 'primary-button', () => startLevel(game.levelIndex + 1)));
+    const next = createButton(t.next, 'primary-button', () => runOptionalAdThen(() => startLevel(game.levelIndex + 1))); next.disabled = game.adRequestInFlight; card.append(next);
     card.append(createButton(t.levels, 'secondary-button result-secondary', goLevels));
   } else if (finalVictory) {
     card.append(createButton(t.levels, 'primary-button', goLevels));
@@ -470,7 +528,7 @@ function createRouteResultCard() {
   const title = document.createElement('strong'); title.textContent = game.routeStatus === 'success' ? t.routeComplete : t.routeFailed; card.append(title);
   const rotations = document.createElement('span'); rotations.className = 'result-detail'; rotations.textContent = `${t.rotations}: ${game.routeState.rotationsUsed}`; card.append(rotations);
   if (game.routeStatus === 'success') { const best = document.createElement('span'); best.className = 'result-detail'; best.textContent = `${t.best}: ${game.routeBestRotations[game.routeIndex + 1]}`; card.append(best); }
-  if (game.routeStatus === 'success') { card.append(createButton(t.next, 'primary-button', () => startRoute(Math.min(game.routeIndex + 1, ROUTE_LEVELS.length - 1)), { testId: 'route-next-button' })); card.append(createButton(t.levels, 'secondary-button result-secondary', () => goLevels('route'))); }
+  if (game.routeStatus === 'success') { const next = createButton(t.next, 'primary-button', () => runOptionalAdThen(() => startRoute(Math.min(game.routeIndex + 1, ROUTE_LEVELS.length - 1))), { testId: 'route-next-button' }); next.disabled = game.adRequestInFlight; card.append(next); card.append(createButton(t.levels, 'secondary-button result-secondary', () => goLevels('route'))); }
   else { card.append(createButton(t.reset, 'primary-button', resetRoute, { testId: 'route-reset-button' })); card.append(createButton(t.levels, 'secondary-button result-secondary', () => goLevels('route'))); }
   return card;
 }
@@ -498,7 +556,7 @@ function renderRouteGameScreen() {
 }
 
 function createRushResultCard() {
-  const t = getText(game.language); const card = document.createElement('div'); card.className = 'result-card rush-result-card'; card.dataset.testid = 'rush-result-card'; const title = document.createElement('strong'); title.textContent = t.rush; const stat = (label, value) => { const row = document.createElement('span'); row.className = 'rush-result-stat'; row.innerHTML = `<small>${label}</small><b>${value}</b>`; return row; }; card.append(title, stat(t.score, game.rushSession.score), stat(t.best, game.rushBestScore), stat(t.fields, game.rushSession.boards)); if (game.rushNewBest) { const bestLine = document.createElement('span'); bestLine.className = 'rush-new-best'; bestLine.textContent = t.rushNewBest; card.append(bestLine); } card.append(createButton(t.again, 'primary-button', startRush, { testId: 'rush-again-button' }), createButton(t.home, 'secondary-button result-secondary', goHome)); return card;
+  const t = getText(game.language); const card = document.createElement('div'); card.className = 'result-card rush-result-card'; card.dataset.testid = 'rush-result-card'; const title = document.createElement('strong'); title.textContent = t.rush; const stat = (label, value) => { const row = document.createElement('span'); row.className = 'rush-result-stat'; row.innerHTML = `<small>${label}</small><b>${value}</b>`; return row; }; card.append(title, stat(t.score, game.rushSession.score), stat(t.best, game.rushBestScore), stat(t.fields, game.rushSession.boards)); if (game.rushNewBest) { const bestLine = document.createElement('span'); bestLine.className = 'rush-new-best'; bestLine.textContent = t.rushNewBest; card.append(bestLine); } const again = createButton(t.again, 'primary-button', () => runOptionalAdThen(startRush), { testId: 'rush-again-button' }); again.disabled = game.adRequestInFlight; card.append(again, createButton(t.home, 'secondary-button result-secondary', goHome)); return card;
 }
 
 function renderRushGameScreen() {
@@ -526,5 +584,13 @@ const onAppReady = () => { if (game.screen === 'boot' && !bootPreview) { game.sc
 render();
 initPlatform({ onPause: () => addPauseReason('yandex'), onResume: () => removePauseReason('yandex') }).then((platform) => {
   if (!hasSavedState && platform.kind === 'yandex') { game.language = getPlatformLanguage() === 'ru' ? 'ru' : 'en'; }
+  cloudSaveManager = createCloudSaveManager({
+    platform: { isPlayerAvailable, getCloudData, setCloudData },
+    getProgress: getProgressSnapshot,
+    applyProgress: applyCloudProgress,
+    onStatus: (status) => { game.cloudStatus = status; document.documentElement.dataset.arrowShiftCloudStatus = status; },
+  });
+  return cloudSaveManager.load();
+}).then(() => {
   if (!bootPreview) onAppReady();
 });
