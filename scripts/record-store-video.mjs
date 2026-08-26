@@ -6,10 +6,13 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const outputDir = join(root, 'store-assets', 'video');
+const langArg = process.argv.find((arg) => arg.startsWith('--lang='));
+const language = langArg?.split('=')[1] === 'en' ? 'en' : 'ru';
+const mediaRoot = language === 'en' ? join(root, 'store-assets', 'en') : join(root, 'store-assets');
+const outputDir = join(mediaRoot, 'video');
 const tempDir = join(root, 'debug', 'recording-video');
-const finalVideo = join(outputDir, 'arrow-shift-gameplay-1920x1080.mp4');
-const previewFrame = join(outputDir, 'arrow-shift-gameplay-preview.png');
+const finalVideo = join(outputDir, language === 'en' ? 'arrow-shift-gameplay-en-1920x1080.mp4' : 'arrow-shift-gameplay-1920x1080.mp4');
+const previewFrame = language === 'ru' ? join(outputDir, 'arrow-shift-gameplay-preview.png') : null;
 const port = 4181;
 const url = `http://127.0.0.1:${port}/?recording=1`;
 
@@ -34,7 +37,7 @@ let browserRef = null;
 let contextRef = null;
 const initialSave = JSON.stringify({
   saveVersion: 4,
-  language: 'ru',
+  language,
   soundOn: true,
   sfxOn: true,
   musicOn: true,
@@ -186,7 +189,14 @@ async function main() {
     const move = available[0];
     const target = page.locator(`[data-arrow-id="${move.id}"]`);
     if (!(await target.count())) { await sleep(220); continue; }
-    await tap(page, target, 225);
+    try {
+      await tap(page, target, 225);
+    } catch (error) {
+      // A fast Rush transition can remove the just-read tile between the DOM snapshot and click.
+      // It is a stale capture target, not a gameplay failure; read the new board on the next loop.
+      if (String(error?.message).includes('Recording target is not visible')) { await sleep(40); continue; }
+      throw error;
+    }
   }
   await sleep(480);
 
@@ -204,10 +214,10 @@ async function main() {
   if (!existsSync(webm)) throw new Error('Playwright did not produce a WebM recording');
 
   run(ffmpegPath, ['-y', '-i', webm, '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-r', '30', finalVideo]);
-  run(ffmpegPath, ['-y', '-loglevel', 'error', '-ss', '18.0', '-i', finalVideo, '-frames:v', '1', '-vf', 'scale=960:540', previewFrame]);
+  if (previewFrame) run(ffmpegPath, ['-y', '-loglevel', 'error', '-ss', '18.0', '-i', finalVideo, '-frames:v', '1', '-vf', 'scale=960:540', previewFrame]);
   rmSync(tempDir, { recursive: true, force: true });
   console.log(`VIDEO=${finalVideo}`);
-  console.log(`PREVIEW=${previewFrame}`);
+  if (previewFrame) console.log(`PREVIEW=${previewFrame}`);
   console.log('AUDIO=silent (Playwright video capture does not include Web Audio output)');
 }
 

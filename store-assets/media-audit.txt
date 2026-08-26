@@ -12,10 +12,21 @@ PASS screenshots/desktop/01-desktop-puzzle.png | 1280x720 | 123725 bytes | PNG
 PASS screenshots/desktop/02-desktop-puzzle-hard.png | 1280x720 | 146817 bytes | PNG
 PASS screenshots/desktop/03-desktop-route.png | 1280x720 | 102554 bytes | PNG
 PASS screenshots/desktop/04-desktop-rush.png | 1280x720 | 63660 bytes | PNG
+PASS en/screenshots/mobile/01-mobile-puzzle.png | 720x1280 | 18330 bytes | PNG
+PASS en/screenshots/mobile/02-mobile-puzzle-hard.png | 720x1280 | 31876 bytes | PNG
+PASS en/screenshots/mobile/03-mobile-route.png | 720x1280 | 46426 bytes | PNG
+PASS en/screenshots/mobile/04-mobile-rush.png | 720x1280 | 43327 bytes | PNG
+PASS en/screenshots/desktop/01-desktop-puzzle.png | 1280x720 | 22948 bytes | PNG
+PASS en/screenshots/desktop/02-desktop-puzzle-hard.png | 1280x720 | 37886 bytes | PNG
+PASS en/screenshots/desktop/03-desktop-route.png | 1280x720 | 41211 bytes | PNG
+PASS en/screenshots/desktop/04-desktop-rush.png | 1280x720 | 16813 bytes | PNG
+PASS video/arrow-shift-gameplay-1920x1080.mp4 | 455267 bytes | 1920x1080 | 30 fps | 21.83s | MP4
+PASS en/video/arrow-shift-gameplay-en-1920x1080.mp4 | 431324 bytes | 1920x1080 | 30 fps | 20.43s | MP4
 
 Manual moderation checks:
 PASS icon and cover are authored vector compositions, not gameplay screenshots
-PASS screenshots contain real game scenes without browser chrome or platform UI
+PASS RU and EN screenshots contain real game scenes without browser chrome or platform UI
 PASS no external/copyrighted assets, fake badges, ratings or promo labels
 PASS filenames use latin letters, numbers and hyphens only
 PASS gameplay modes represented: Puzzle, Pinned + Barrier, Route and Rush
+PASS EN capture DOM audit found no Russian localization strings
