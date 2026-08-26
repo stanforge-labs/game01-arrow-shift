@@ -128,9 +128,14 @@ p, span { margin: 0; }
 .route-hud { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; color: var(--muted-ink); font-size: .8rem; }
 .route-run-button, .route-reset-button { min-width: 112px; }
 .route-marker { position: relative; z-index: 1; display: grid; place-items: center; align-self: center; justify-self: center; width: 24px; height: 24px; border-radius: 50%; font-size: .58rem; font-weight: 800; pointer-events: none; }
-.route-marker.is-start { border: 1px solid var(--accent); color: var(--accent); background: rgb(250 248 242 / 85%); }
-.route-marker.is-target { border: 1px dashed var(--muted-ink); color: var(--muted-ink); background: transparent; }
-.route-marker.route-signal { z-index: 4; width: 14px; height: 14px; border: 2px solid var(--accent); background: var(--accent); color: transparent; box-shadow: 0 0 0 4px rgb(62 116 101 / 14%); }
+.route-marker.is-start { z-index: 2; width: 42%; height: 42%; min-width: 30px; min-height: 30px; border: 2px solid var(--accent); color: var(--accent); background: rgb(250 248 242 / 92%); box-shadow: inset 0 0 0 3px rgb(62 116 101 / 11%); }
+.route-marker.is-start::after { content: ""; position: absolute; inset: -6px; border: 1px solid rgb(62 116 101 / 35%); border-radius: 50%; }
+.route-marker-arrow { width: 42%; height: 42%; color: var(--accent); }
+.route-marker.is-target { z-index: 2; width: 44%; height: 44%; min-width: 30px; min-height: 30px; border: 2px solid var(--accent); color: var(--accent); background: rgb(250 248 242 / 45%); box-shadow: inset 0 0 0 3px rgb(62 116 101 / 10%); }
+.target-ring { width: 42%; height: 42%; border: 2px solid var(--accent); border-radius: 50%; background: var(--accent); box-shadow: inset 0 0 0 3px var(--board); }
+.route-marker.route-signal { z-index: 4; width: 26%; height: 26%; min-width: 12px; min-height: 12px; border: 2px solid var(--accent); background: var(--accent); color: transparent; box-shadow: 0 0 0 4px rgb(62 116 101 / 14%); transition: transform 150ms ease-out; }
+.route-trace { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; color: var(--accent); pointer-events: none; }
+.route-feedback { min-height: 20px; color: var(--muted-ink); text-align: center; font-size: .82rem; }
 .result-detail { color: var(--muted-ink); font-size: .78rem; line-height: 1.35; }
 .route-result-card, .rush-result-card { gap: 10px; }
 .levels-screen { max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain; padding-bottom: 12px; }

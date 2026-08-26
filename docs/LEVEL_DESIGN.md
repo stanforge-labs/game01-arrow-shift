@@ -29,5 +29,5 @@ All shipped levels live in `src/game/levels.js`, carry a short `designGoal`, and
 
 ## Route and Rush content
 
-- Route contains 12 authored boards in `src/route/levels.js`; each has a start, target, rotation limit and design goal. Validate with `npm run content:report`.
+- Route contains 12 authored directional-path boards in `src/route/levels.js`; each has one directed Start, a full-cell Target, arrow cells, a rotation limit and design goal. The shared simulator is the source of truth for Start entry, arrow redirection, barriers, empty cells and loops. Validate with `npm run content:report`.
 - Rush contains 24 reusable validated Puzzle templates in `src/rush/levels.js`, tiered by session progress. Do not add mechanics to either mode.

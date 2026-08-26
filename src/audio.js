@@ -1,4 +1,4 @@
-const SOUND_NAMES = ['uiClick', 'tilePress', 'exit', 'blocked', 'shift', 'pinnedHold', 'barrierBlocked', 'victory', 'routeRotate', 'routeRun', 'routeSuccess', 'routeFail', 'rushStart', 'rushEnd'];
+const SOUND_NAMES = ['uiClick', 'tilePress', 'exit', 'blocked', 'shift', 'pinnedHold', 'barrierBlocked', 'victory', 'routeRotate', 'routeRun', 'routeMove', 'routeSuccess', 'routeFail', 'rushStart', 'rushEnd'];
 
 function envelope(context, destination, frequency, duration, peak, type = 'sine', slideTo = null) {
   const now = context.currentTime;
@@ -100,6 +100,8 @@ export function createAudioController() {
       envelope(audio, masterGain, 250 * pitch, 0.06, 0.055, 'triangle', 320 * pitch);
     } else if (name === 'routeRun') {
       envelope(audio, masterGain, 220, 0.16, 0.045, 'sine', 360);
+    } else if (name === 'routeMove') {
+      envelope(audio, masterGain, 285 * pitch, 0.035, 0.022, 'sine', 300 * pitch);
     } else if (name === 'routeSuccess') {
       envelope(audio, masterGain, 340, 0.11, 0.055, 'sine', 450);
       window.setTimeout(() => { if (enabled) envelope(audio, masterGain, 500, 0.14, 0.05, 'sine', 620); }, 90);

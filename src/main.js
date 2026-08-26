@@ -44,7 +44,10 @@ const game = {
   routeStatus: 'planning',
   routePath: [],
   routeStep: 0,
+  routeRunResult: null,
+  routeReason: null,
   routeRunTimer: null,
+  routeFailTimer: null,
   rushSession: null,
   rushTimer: null,
   rushStatus: 'playing',
@@ -76,6 +79,8 @@ function clearTimers() {
   game.pendingPulseTimer = null;
   window.clearTimeout(game.routeRunTimer);
   game.routeRunTimer = null;
+  window.clearTimeout(game.routeFailTimer);
+  game.routeFailTimer = null;
   window.clearInterval(game.rushTimer);
   game.rushTimer = null;
 }
@@ -108,7 +113,7 @@ function startRoute(index) {
   if (!Number.isInteger(index) || index < 0 || index >= ROUTE_LEVELS.length) return;
   if (!isLevelUnlocked(index + 1, game.highestUnlockedRoute, import.meta.env.DEV)) return;
   clearTimers();
-  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.screen = 'game'; render();
+  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; game.screen = 'game'; render();
 }
 
 function startRush() {
@@ -139,29 +144,37 @@ function goLevels(mode = game.mode === 'route' ? 'route' : 'puzzle') {
 
 function resetRoute() {
   clearTimers();
-  game.routeState = createRouteState(ROUTE_LEVELS[game.routeIndex]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; render();
+  game.routeState = createRouteState(ROUTE_LEVELS[game.routeIndex]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; render();
 }
 
-function finishRoute(status) {
+function finishRoute(status, reason) {
   game.routeStatus = status;
+  game.routeReason = reason ?? null;
   if (status === 'success') {
     const levelNumber = game.routeIndex + 1;
     game.highestUnlockedRoute = Math.max(game.highestUnlockedRoute, Math.min(levelNumber + 1, ROUTE_LEVELS.length));
     const oldBest = game.routeBestRotations[levelNumber];
-    if (oldBest === undefined || game.routeState.rotations < oldBest) game.routeBestRotations[levelNumber] = game.routeState.rotations;
+    if (oldBest === undefined || game.routeState.rotationsUsed < oldBest) game.routeBestRotations[levelNumber] = game.routeState.rotationsUsed;
     persist();
     audio.play('routeSuccess');
-  } else audio.play('routeFail');
+  } else {
+    audio.play('routeFail');
+    game.routeFailTimer = window.setTimeout(() => {
+      game.routeStatus = 'planning';
+      game.routeFailTimer = null;
+      render();
+      window.setTimeout(() => { if (game.routeStatus === 'planning') { game.routePath = []; game.routeStep = 0; game.routeReason = null; render(); } }, 120);
+    }, 760);
+  }
   render();
 }
 
 function runRoute() {
-  if (game.routeStatus !== 'planning' || game.routeState.rotations > game.routeState.rotationLimit) return;
-  clearTimers(); game.routeStatus = 'running'; game.routeStep = 0; game.routePath = simulateRoute(game.routeState).path; audio.play('routeRun'); render();
-  const result = simulateRoute(game.routeState);
+  if (game.routeStatus !== 'planning' || game.routeState.rotationsUsed > game.routeState.rotationLimit) return;
+  clearTimers(); const result = simulateRoute(game.routeState); game.routeStatus = 'running'; game.routeStep = 0; game.routePath = result.path; game.routeRunResult = result; game.routeReason = null; audio.play('routeRun'); render();
   const advance = () => {
-    game.routeStep += 1; render();
-    if (game.routeStep >= result.path.length - 1) { finishRoute(result.status === 'success' ? 'success' : 'fail'); return; }
+    if (game.routeStep >= result.path.length - 1) { finishRoute(result.success ? 'success' : 'fail', result.reason); return; }
+    game.routeStep += 1; if (game.routeStep > 0) audio.play('routeMove'); render();
     game.routeRunTimer = window.setTimeout(advance, 150);
   };
   game.routeRunTimer = window.setTimeout(advance, 150);
@@ -170,7 +183,7 @@ function runRoute() {
 function onRouteArrowClick(arrow) {
   if (game.routeStatus !== 'planning') return;
   if (arrow.pinned) { audio.play('pinnedHold'); haptic(18); return; }
-  if (game.routeState.rotations >= game.routeState.rotationLimit) return;
+  if (game.routeState.rotationsUsed >= game.routeState.rotationLimit) return;
   const next = rotateRouteArrow(game.routeState, arrow.id);
   if (next) { audio.play('routeRotate'); game.routeState = next; render(); }
 }
@@ -342,14 +355,19 @@ function renderPuzzleGameScreen() {
   const hint = document.createElement('p'); hint.className = 'hint'; if (game.status === 'playing' && game.levelIndex === 0) hint.textContent = t.firstHint; if (game.status === 'playing' && game.levelIndex === 2) hint.textContent = t.shiftHint; if (game.status === 'playing' && (game.levelIndex === 9 || game.levelIndex === 10)) hint.textContent = t.pinnedHint; if (game.status === 'playing' && game.levelIndex === 19) hint.textContent = t.barrierHint; shell.append(header, board, hint); app.replaceChildren(shell);
 }
 
-function createRouteMarker(label, className, position) {
-  const marker = document.createElement('span'); marker.className = `route-marker ${className}`; marker.style.gridRow = String(position.row + 1); marker.style.gridColumn = String(position.col + 1); marker.textContent = label; marker.setAttribute('aria-hidden', 'true'); return marker;
+function createRouteMarker(kind, position, direction = null) {
+  const t = getText(game.language); const marker = document.createElement('span'); marker.className = `route-marker ${kind}`; marker.style.gridRow = String(position.row + 1); marker.style.gridColumn = String(position.col + 1); marker.setAttribute('role', 'img'); marker.setAttribute('aria-label', kind === 'is-start' ? t.start : kind === 'is-target' ? t.target : t.route);
+  if (kind === 'is-start') { const arrow = makeArrowIcon(direction); arrow.classList.add('route-marker-arrow'); marker.append(arrow); }
+  else if (kind === 'is-target') { const ring = document.createElement('span'); ring.className = 'target-ring'; marker.append(ring); }
+  else { marker.textContent = ''; }
+  return marker;
 }
 
 function createRouteResultCard() {
   const t = getText(game.language); const card = document.createElement('div'); card.className = 'result-card route-result-card'; card.dataset.testid = 'route-result-card';
   const title = document.createElement('strong'); title.textContent = game.routeStatus === 'success' ? t.routeComplete : t.routeFailed; card.append(title);
-  const detail = document.createElement('span'); detail.className = 'result-detail'; detail.textContent = `${t.rotationLimit}: ${game.routeState.rotations} / ${game.routeState.rotationLimit}`; card.append(detail);
+  const rotations = document.createElement('span'); rotations.className = 'result-detail'; rotations.textContent = `${t.rotations}: ${game.routeState.rotationsUsed}`; card.append(rotations);
+  if (game.routeStatus === 'success') { const best = document.createElement('span'); best.className = 'result-detail'; best.textContent = `${t.best}: ${game.routeBestRotations[game.routeIndex + 1]}`; card.append(best); }
   if (game.routeStatus === 'success') { card.append(createButton(t.next, 'primary-button', () => startRoute(Math.min(game.routeIndex + 1, ROUTE_LEVELS.length - 1)), { testId: 'route-next-button' })); card.append(createButton(t.levels, 'secondary-button result-secondary', () => goLevels('route'))); }
   else { card.append(createButton(t.reset, 'primary-button', resetRoute, { testId: 'route-reset-button' })); card.append(createButton(t.levels, 'secondary-button result-secondary', () => goLevels('route'))); }
   return card;
@@ -361,15 +379,20 @@ function gridLinesFor(board, layout) {
   board.append(lines);
 }
 
+function createRouteTrace(path, layout) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('route-trace'); svg.setAttribute('viewBox', `0 0 ${layout.boardSize} ${layout.boardSize}`); svg.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); const offset = layout.boardPadding + 1; line.setAttribute('points', path.map((position) => `${offset + (position.col + 0.5) * layout.cellSize},${offset + (position.row + 0.5) * layout.cellSize}`).join(' ')); line.setAttribute('fill', 'none'); line.setAttribute('stroke', 'currentColor'); line.setAttribute('stroke-linecap', 'round'); line.setAttribute('stroke-linejoin', 'round'); line.setAttribute('stroke-width', '2'); svg.append(line); return svg;
+}
+
 function routeHeader(titleText, progressText) {
-  const t = getText(game.language); const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = titleText; const group = document.createElement('div'); group.className = 'title-group'; const title = document.createElement('p'); title.className = 'level-label'; title.dataset.testid = 'level-number'; title.textContent = titleText; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = progressText; group.append(title, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), 'sound-button', toggleSound, 'sound-toggle', false)); header.append(brand, group, controls); return header;
+  const t = getText(game.language); const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = t.gameTitle; const group = document.createElement('div'); group.className = 'title-group'; const title = document.createElement('p'); title.className = 'level-label'; title.dataset.testid = 'level-number'; title.textContent = titleText; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = progressText; group.append(title, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), 'sound-button', toggleSound, 'sound-toggle', false)); header.append(brand, group, controls); return header;
 }
 
 function renderRouteGameScreen() {
   const t = getText(game.language); const level = ROUTE_LEVELS[game.routeIndex]; const layout = getLayoutMetrics(level, { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell route-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`); shell.append(routeHeader(`${t.route} ${game.routeIndex + 1}`, `${game.routeIndex + 1} / ${ROUTE_LEVELS.length}`));
-  const board = document.createElement('div'); board.className = `board route-board ${game.routeStatus !== 'planning' ? 'has-result' : ''}`; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout);
-  level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); board.append(createRouteMarker(t.start, 'is-start', game.routeState.start)); board.append(createRouteMarker(t.target, 'is-target', game.routeState.target)); game.routeState.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.routeStatus === 'running' && game.routePath[game.routeStep]) board.append(createRouteMarker('●', 'route-signal', game.routePath[game.routeStep])); if (game.routeStatus === 'success' || game.routeStatus === 'fail') board.append(createRouteResultCard());
-  const hud = document.createElement('div'); hud.className = 'route-hud'; const rotation = document.createElement('span'); rotation.textContent = `${t.rotationLimit}: ${game.routeState.rotations} / ${game.routeState.rotationLimit}`; const run = createButton(t.run, 'primary-button route-run-button', runRoute, { testId: 'route-run-button' }); run.disabled = game.routeStatus !== 'planning' || game.routeState.rotations > game.routeState.rotationLimit; const reset = createButton(t.reset, 'secondary-button route-reset-button', resetRoute, { testId: 'route-reset-button-bottom' }); hud.append(rotation, run, reset); shell.append(board, hud); app.replaceChildren(shell);
+  const board = document.createElement('div'); board.className = `board route-board ${game.routeStatus === 'success' ? 'has-result' : ''}`; board.dataset.resultStatus = game.routeStatus === 'success' ? 'won' : ''; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout);
+  const tracePath = game.routeStatus === 'running' ? game.routePath.slice(0, game.routeStep + 1) : game.routePath; if (tracePath.length > 1) board.append(createRouteTrace(tracePath, layout)); level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); board.append(createRouteMarker('is-start', game.routeState.start, game.routeState.start.direction)); board.append(createRouteMarker('is-target', game.routeState.target)); game.routeState.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.routeStatus === 'running' && game.routePath[game.routeStep]) board.append(createRouteMarker('route-signal', game.routePath[game.routeStep], game.routeRunResult?.visitedStates[Math.min(game.routeStep, game.routeRunResult.visitedStates.length - 1)]?.direction)); if (game.routeStatus === 'success') board.append(createRouteResultCard());
+  const hud = document.createElement('div'); hud.className = 'route-hud'; const rotation = document.createElement('span'); rotation.textContent = `${t.rotations}: ${game.routeState.rotationsUsed} / ${game.routeState.rotationLimit}`; const run = createButton(t.run, 'primary-button route-run-button', runRoute, { testId: 'route-run-button' }); run.disabled = game.routeStatus !== 'planning'; const reset = createButton(t.reset, 'secondary-button route-reset-button', resetRoute, { testId: 'route-reset-button-bottom' }); reset.disabled = game.routeStatus === 'running'; hud.append(rotation, run, reset); const feedback = document.createElement('p'); feedback.className = 'route-feedback'; if (game.routeStatus === 'fail') feedback.textContent = game.routeReason === 'loop' ? t.routeLooped : t.pathBroken; shell.append(board, hud, feedback); app.replaceChildren(shell);
 }
 
 function createRushResultCard() {
