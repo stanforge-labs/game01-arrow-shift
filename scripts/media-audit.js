@@ -36,7 +36,7 @@ for (const [relative, expectedWidth, expectedHeight] of required) {
   if (!ok) failures += 1;
 }
 
-function inspectVideo(relative) {
+function inspectVideo(relative, { requireAac = false } = {}) {
   const file = resolve(root, 'store-assets', relative);
   if (!existsSync(file)) {
     lines.push(`FAIL missing: ${relative}`);
@@ -59,7 +59,9 @@ function inspectVideo(relative) {
     const frameRate = Number(fps?.[1]);
     const seconds = duration ? Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3]) : 0;
     metadata = `${width}x${height} | ${frameRate || '?'} fps | ${seconds ? `${seconds.toFixed(2)}s` : '? duration'}`;
-    metadataOk = width === 1920 && height === 1080 && frameRate >= 29 && frameRate <= 60 && seconds > 0 && seconds <= 28 && /Video:.*h264/i.test(output);
+    const videoOk = width === 1920 && height === 1080 && frameRate >= 29 && frameRate <= 60 && seconds > 0 && seconds <= 28 && /Video:.*h264/i.test(output);
+    const audioOk = !requireAac || (/Audio:.*aac.*\(LC\)/is.test(output) && /48000\s+Hz/i.test(output) && /stereo/i.test(output) && /Audio:.*\d+\s+kb\/s/is.test(output));
+    metadataOk = videoOk && audioOk;
   } else {
     metadata = 'ffmpeg probe unavailable';
   }
@@ -70,6 +72,8 @@ function inspectVideo(relative) {
 
 inspectVideo('video/arrow-shift-gameplay-1920x1080.mp4');
 inspectVideo('en/video/arrow-shift-gameplay-en-1920x1080.mp4');
+inspectVideo('video/arrow-shift-gameplay-ru-yandex-1920x1080.mp4', { requireAac: true });
+inspectVideo('en/video/arrow-shift-gameplay-en-yandex-1920x1080.mp4', { requireAac: true });
 lines.push('', 'Manual moderation checks:', 'PASS icon and cover are authored vector compositions, not gameplay screenshots', 'PASS RU and EN screenshots contain real game scenes without browser chrome or platform UI', 'PASS no external/copyrighted assets, fake badges, ratings or promo labels', 'PASS filenames use latin letters, numbers and hyphens only', 'PASS gameplay modes represented: Puzzle, Pinned + Barrier, Route and Rush', 'PASS EN capture DOM audit found no Russian localization strings', '');
 writeFileSync(out, lines.join('\n'), 'utf8');
 console.log(lines.join('\n'));

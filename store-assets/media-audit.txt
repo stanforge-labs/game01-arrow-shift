@@ -22,6 +22,8 @@ PASS en/screenshots/desktop/03-desktop-route.png | 1280x720 | 41211 bytes | PNG
 PASS en/screenshots/desktop/04-desktop-rush.png | 1280x720 | 16813 bytes | PNG
 PASS video/arrow-shift-gameplay-1920x1080.mp4 | 455267 bytes | 1920x1080 | 30 fps | 21.83s | MP4
 PASS en/video/arrow-shift-gameplay-en-1920x1080.mp4 | 431324 bytes | 1920x1080 | 30 fps | 20.43s | MP4
+PASS video/arrow-shift-gameplay-ru-yandex-1920x1080.mp4 | 862260 bytes | 1920x1080 | 30 fps | 21.85s | MP4
+PASS en/video/arrow-shift-gameplay-en-yandex-1920x1080.mp4 | 800839 bytes | 1920x1080 | 30 fps | 20.45s | MP4
 
 Manual moderation checks:
 PASS icon and cover are authored vector compositions, not gameplay screenshots
