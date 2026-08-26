@@ -17,6 +17,7 @@ let state = {
   pauseHandler: null,
   resumeHandler: null,
   adPromise: null,
+  initPromise: null,
 };
 
 function isLocalHost() {
@@ -74,17 +75,6 @@ function installDevMock() {
   window.YaGames = { init: async () => sdk };
 }
 
-function loadSdkScript() {
-  if (typeof document === 'undefined' || window.YaGames) return Promise.resolve();
-  return new Promise((resolve) => {
-    const script = document.createElement('script'); script.src = '/sdk.js'; script.async = true;
-    const fallback = window.setTimeout(resolve, 1800);
-    script.addEventListener('load', () => { window.clearTimeout(fallback); resolve(); }, { once: true });
-    script.addEventListener('error', () => { window.clearTimeout(fallback); resolve(); }, { once: true });
-    document.head.append(script);
-  });
-}
-
 function bindEvents() {
   if (!state.ysdk?.on) return;
   state.pauseHandler = () => state.callbacks.onPause?.();
@@ -105,24 +95,34 @@ async function initializePlayer() {
   return state.playerPromise;
 }
 
-export async function initPlatform(callbacks = {}) {
-  if (state.initialized) return state;
+async function initializePlatform(callbacks) {
   state.callbacks = callbacks;
-  if (import.meta.env.DEV) installDevMock();
-  if (!window.YaGames && !isLocalHost()) await loadSdkScript();
+  if (import.meta.env.DEV && isLocalHost()) installDevMock();
   try {
+    // Production index.html loads /sdk.js synchronously before the module entry.
+    // Never inject a second loader or call init until the global is available.
     if (window.YaGames?.init) {
       state.ysdk = await withTimeout(window.YaGames.init(), SDK_INIT_TIMEOUT, null);
       if (!state.ysdk) throw new Error('Yandex SDK unavailable');
       state.kind = 'yandex';
       bindEvents();
       await initializePlayer();
+    } else if (!isLocalHost()) {
+      console.warn('[Arrow Shift] Yandex SDK was not loaded from /sdk.js; using local platform fallback.');
     }
   } catch {
     state.ysdk = null; state.player = null; state.kind = 'local'; state.cloudAvailable = false;
+    if (!isLocalHost()) console.warn('[Arrow Shift] Yandex SDK initialization failed; using local platform fallback.');
   }
   state.initialized = true;
   return state;
+}
+
+export function initPlatform(callbacks = {}) {
+  if (state.initialized) return Promise.resolve(state);
+  if (!state.initPromise) state.initPromise = initializePlatform(callbacks);
+  else state.callbacks = callbacks;
+  return state.initPromise;
 }
 
 export function getPlatform() { return state; }

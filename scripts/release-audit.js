@@ -6,9 +6,10 @@ import { spawnSync } from 'node:child_process';
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist-yandex');
 const release = resolve(root, 'release');
-const zip = resolve(release, 'arrow-shift-yandex-1.0.0.zip');
-const auditPath = resolve(release, 'audit.txt');
-const readmePath = resolve(release, 'README.md');
+const releaseVersion = process.env.RELEASE_VERSION || '1.0.1';
+const zip = resolve(release, `arrow-shift-yandex-${releaseVersion}.zip`);
+const auditPath = resolve(release, `audit-${releaseVersion}.txt`);
+const readmePath = resolve(release, `README-${releaseVersion}.md`);
 const maxUnpackedBytes = 100 * 1024 * 1024;
 const invalidNamePattern = /[\u0000-\u001f\u007f-\u009f\s\u0080-\uffff]/;
 const forbiddenProductionMarkers = ['arrow-shift-mock', 'mockAd', 'platform=mock', 'rushResult', 'screen=boot'];
@@ -47,6 +48,10 @@ const sourceMaps = relativeNames.filter((name) => name.toLowerCase().endsWith('.
 const bundleText = files.filter((file) => /\.js$/.test(file)).map((file) => readFileSync(file, 'utf8')).join('\n');
 const devMarkers = forbiddenProductionMarkers.filter((marker) => bundleText.includes(marker));
 const indexText = readFileSync(join(dist, 'index.html'), 'utf8');
+const sdkScriptMatches = indexText.match(/<script\s+src=["']\/sdk\.js["']><\/script>/g) || [];
+const moduleScriptIndex = indexText.indexOf('type="module"');
+const sdkScriptIndex = indexText.indexOf('/sdk.js');
+const dynamicSdkLoader = /createElement\(["']script["']\)|\.src\s*=\s*["']\/sdk\.js["']/.test(bundleText);
 const hasRootIndex = relativeNames.includes('index.html');
 const unpackedBytes = bytes(files);
 const zipBytes = existsSync(zip) ? statSync(zip).size : 0;
@@ -64,10 +69,12 @@ const checks = [
   ['PASS no source maps', sourceMaps.length === 0],
   ['PASS no dev mocks', devMarkers.length === 0],
   ['PASS relative runtime assets', !/src="\/(assets|favicon)/.test(indexText)],
+  ['PASS Yandex SDK /sdk.js loader', sdkScriptMatches.length === 1 && sdkScriptIndex >= 0 && sdkScriptIndex < moduleScriptIndex],
+  ['PASS no duplicate dynamic SDK loader', !dynamicSdkLoader],
   ['PASS production build', files.length > 0],
 ];
 const report = [
-  'Arrow Shift 1.0.0',
+  `Arrow Shift ${releaseVersion}`,
   ...checks.map(([label, ok]) => `${ok ? label : label.replace('PASS', 'FAIL')}`),
   `File count: ${files.length}`,
   `Unpacked size: ${formatBytes(unpackedBytes)}`,
@@ -79,4 +86,4 @@ const report = [
 ].join('\n');
 writeFileSync(auditPath, report, 'utf8');
 console.log(report);
-if (unpackedBytes >= maxUnpackedBytes || invalidNames.length || sourceMaps.length || devMarkers.length || !hasRootIndex || !existsSync(zip) || /src="\/(assets|favicon)/.test(indexText)) process.exitCode = 1;
+if (unpackedBytes >= maxUnpackedBytes || invalidNames.length || sourceMaps.length || devMarkers.length || !hasRootIndex || !existsSync(zip) || /src="\/(assets|favicon)/.test(indexText) || sdkScriptMatches.length !== 1 || sdkScriptIndex < 0 || sdkScriptIndex > moduleScriptIndex || dynamicSdkLoader) process.exitCode = 1;
