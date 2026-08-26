@@ -1,4 +1,4 @@
-const SOUND_NAMES = ['uiClick', 'tilePress', 'exit', 'blocked', 'shift', 'pinnedHold', 'barrierBlocked', 'victory'];
+const SOUND_NAMES = ['uiClick', 'tilePress', 'exit', 'blocked', 'shift', 'pinnedHold', 'barrierBlocked', 'victory', 'routeRotate', 'routeRun', 'routeSuccess', 'routeFail', 'rushStart', 'rushEnd'];
 
 function envelope(context, destination, frequency, duration, peak, type = 'sine', slideTo = null) {
   const now = context.currentTime;
@@ -96,6 +96,19 @@ export function createAudioController() {
       window.setTimeout(() => {
         if (enabled) envelope(audio, masterGain, 620, 0.16, 0.045, 'sine', 700);
       }, 190);
+    } else if (name === 'routeRotate') {
+      envelope(audio, masterGain, 250 * pitch, 0.06, 0.055, 'triangle', 320 * pitch);
+    } else if (name === 'routeRun') {
+      envelope(audio, masterGain, 220, 0.16, 0.045, 'sine', 360);
+    } else if (name === 'routeSuccess') {
+      envelope(audio, masterGain, 340, 0.11, 0.055, 'sine', 450);
+      window.setTimeout(() => { if (enabled) envelope(audio, masterGain, 500, 0.14, 0.05, 'sine', 620); }, 90);
+    } else if (name === 'routeFail') {
+      envelope(audio, masterGain, 180, 0.13, 0.045, 'triangle', 110);
+    } else if (name === 'rushStart') {
+      envelope(audio, masterGain, 260, 0.08, 0.045, 'triangle', 380);
+    } else if (name === 'rushEnd') {
+      envelope(audio, masterGain, 300, 0.12, 0.05, 'triangle', 190);
     }
     return true;
   }

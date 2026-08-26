@@ -26,3 +26,8 @@ All shipped levels live in `src/game/levels.js`, carry a short `designGoal`, and
 - Prefer a readable dependency or meaningful choice over random occupancy.
 - Avoid mirrored copies, consecutive near-duplicates, all-free openings, and levels that require blind guessing.
 - Every level must start in `playing`, have at least one available move, and have a solver result before it is shipped.
+
+## Route and Rush content
+
+- Route contains 12 authored boards in `src/route/levels.js`; each has a start, target, rotation limit and design goal. Validate with `npm run content:report`.
+- Rush contains 24 reusable validated Puzzle templates in `src/rush/levels.js`, tiered by session progress. Do not add mechanics to either mode.

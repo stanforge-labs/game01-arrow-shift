@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "test": "vitest run",
-    "levels:report": "node scripts/levels-report.js"
+    "levels:report": "node scripts/levels-report.js",
+    "content:report": "node scripts/content-report.js"
   },
   "devDependencies": {
     "vite": "^8.2.2",

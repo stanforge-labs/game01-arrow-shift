@@ -13,3 +13,5 @@ A level is complete when no arrows remain. If arrows remain and none can exit, i
 The product shell uses three in-app screens: Home, Levels and Game. Home offers Play/Continue, level selection, language and sound controls. Levels shows completed, unlocked and locked level tokens; in development all levels are selectable. Production progress stores the highest unlocked level and the last played level without saving an unfinished puzzle state. Web Audio provides short procedural tactile SFX and can be disabled in settings.
 
 Gameplay result states share one ResultCard flow: a solid card centered over the board, a readable title, then full-width primary and secondary actions. Utility navigation uses the same custom SVG controls on every screen.
+
+Route has twelve manual boards: rotate regular arrows clockwise before Run, then a signal follows the route to a target; pinned arrows do not rotate and barriers block the signal. Rush uses twenty-four validated Puzzle templates in a sixty-second session: exits score points, clearing a board adds time and a clear bonus, and blocked taps reset the combo. Both modes are local-only and do not change Puzzle rules.

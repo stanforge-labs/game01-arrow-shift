@@ -4,11 +4,15 @@ import { isLevelUnlocked, normalizeSave } from './storage.js';
 describe('progress storage', () => {
   it('migrates the legacy level field without losing progress', () => {
     expect(normalizeSave({ saveVersion: 1, level: 8, language: 'en' })).toEqual({
-      saveVersion: 2,
+      saveVersion: 3,
       language: 'en',
       soundOn: true,
       highestUnlockedLevel: 8,
       lastPlayedLevel: 8,
+      highestUnlockedRoute: 1,
+      routeBestRotations: {},
+      rushBestScore: 0,
+      rushBestBoards: 0,
     });
   });
 

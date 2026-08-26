@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'arrow-shift-save';
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 export const DEFAULT_SAVE = Object.freeze({
   saveVersion: SAVE_VERSION,
@@ -7,6 +7,10 @@ export const DEFAULT_SAVE = Object.freeze({
   soundOn: true,
   highestUnlockedLevel: 1,
   lastPlayedLevel: 1,
+  highestUnlockedRoute: 1,
+  routeBestRotations: {},
+  rushBestScore: 0,
+  rushBestBoards: 0,
 });
 
 function clampLevel(value, levelCount = Number.MAX_SAFE_INTEGER) {
@@ -25,6 +29,10 @@ export function normalizeSave(value) {
     soundOn: value.soundOn !== false,
     highestUnlockedLevel: highest,
     lastPlayedLevel: last,
+    highestUnlockedRoute: clampLevel(value.highestUnlockedRoute ?? 1, 12),
+    routeBestRotations: value.routeBestRotations && typeof value.routeBestRotations === 'object' ? { ...value.routeBestRotations } : {},
+    rushBestScore: Number.isFinite(value.rushBestScore) && value.rushBestScore >= 0 ? Math.floor(value.rushBestScore) : 0,
+    rushBestBoards: Number.isFinite(value.rushBestBoards) && value.rushBestBoards >= 0 ? Math.floor(value.rushBestBoards) : 0,
   };
 }
 
