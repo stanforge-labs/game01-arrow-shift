@@ -13,16 +13,19 @@ import { RUSH_DURATION, createRushSession, finishRush, recordRushBlocked, record
 const app = document.querySelector('#app');
 const initialSave = loadSave();
 const audio = createAudioController();
+const bootPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('screen') === 'boot';
 app.addEventListener('contextmenu', (event) => {
   if (event.target.closest('.game-shell')) event.preventDefault();
 });
 const game = {
-  screen: 'home',
+  screen: 'boot',
   mode: 'puzzle',
   levelIndex: getInitialLevelIndex(initialSave.lastPlayedLevel, import.meta.env.DEV, LEVELS.length),
   lastPlayedPuzzleLevel: initialSave.lastPlayedLevel,
   language: initialSave.language,
-  soundOn: initialSave.soundOn,
+  sfxOn: initialSave.sfxOn,
+  musicOn: initialSave.musicOn,
+  audioPopoverOpen: false,
   highestUnlockedLevel: Math.min(Math.max(initialSave.highestUnlockedLevel, 1), LEVELS.length),
   highestUnlockedRoute: Math.min(Math.max(initialSave.highestUnlockedRoute, 1), ROUTE_LEVELS.length),
   routeBestRotations: { ...initialSave.routeBestRotations },
@@ -62,15 +65,18 @@ const game = {
   rushNewBest: false,
   rushHistory: [],
 };
-audio.setEnabled(game.soundOn);
+audio.setSfxEnabled(game.sfxOn);
+audio.setMusicEnabled(game.musicOn);
 
 function currentLevel() { return LEVELS[game.levelIndex]; }
 
 function persist() {
   saveSave({
-    saveVersion: 3,
+    saveVersion: 4,
     language: game.language,
-    soundOn: game.soundOn,
+    soundOn: game.sfxOn || game.musicOn,
+    sfxOn: game.sfxOn,
+    musicOn: game.musicOn,
     highestUnlockedLevel: game.highestUnlockedLevel,
     lastPlayedLevel: game.lastPlayedPuzzleLevel,
     highestUnlockedRoute: game.highestUnlockedRoute ?? initialSave.highestUnlockedRoute,
@@ -136,7 +142,7 @@ function startRoute(index) {
 
 function startRush() {
   clearTimers();
-  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = true; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); game.rushEntranceTimer = window.setTimeout(() => { game.rushBoardEntering = false; game.rushEntranceTimer = null; render(); }, 160); audio.play('rushStart');
+  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.status = 'playing'; game.animating = false; game.exitingId = null; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = false; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); audio.startMusic(); audio.play('rushStart');
   game.rushTimer = window.setInterval(() => {
     game.rushSession = tickRush(game.rushSession);
     if (game.rushSession.ended) endRush(); else render();
@@ -207,10 +213,16 @@ function onRouteArrowClick(arrow) {
 }
 
 function loadNextRushBoard() {
+  window.clearTimeout(game.pendingPulseTimer); game.pendingPulseTimer = null;
+  window.clearTimeout(game.rushBonusTimer); game.rushBonusTimer = null;
+  window.clearTimeout(game.rushComboPulseTimer); game.rushComboPulseTimer = null;
+  window.clearTimeout(game.rushEntranceTimer); game.rushEntranceTimer = null;
+  game.rushBonusVisible = false; game.rushComboPulse = false;
+  game.animating = false; game.exitingId = null; game.blockedId = null;
   const nextIndex = nextRushTemplateIndex(game.rushSession.templateIndex, game.rushSession.boards, game.rushHistory);
   game.rushHistory = [...game.rushHistory, nextIndex].slice(-3);
   game.rushSession = { ...game.rushSession, templateIndex: nextIndex };
-  game.state = createFreshGameState(RUSH_TEMPLATES[nextIndex]); game.status = 'playing'; game.animating = false; game.exitingId = null; game.blockedId = null; game.rotatedIds = []; game.heldIds = []; game.shift = null; game.rushBoardEntering = true; game.rushEntranceTimer = window.setTimeout(() => { game.rushBoardEntering = false; game.rushEntranceTimer = null; render(); }, 160); render();
+  game.state = createFreshGameState(RUSH_TEMPLATES[nextIndex]); game.status = 'playing'; game.rotatedIds = []; game.heldIds = []; game.shift = null; game.rushBoardEntering = false; render();
 }
 
 function endRush() {
@@ -254,11 +266,9 @@ function makeSoundIcon(isOn = true) {
 }
 
 function makeDirectionMotif() {
-  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  icon.setAttribute('class', 'home-motif'); icon.setAttribute('viewBox', '0 0 96 20'); icon.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', 'M4 10h12m-4-4 4 4-4 4M28 16V4m-4 4 4-4 4 4M52 10H40m4-4-4 4 4 4M76 4v12m-4-4 4 4 4-4');
-  path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor'); path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round'); path.setAttribute('stroke-width', '1.4'); icon.append(path); return icon;
+  const motif = document.createElement('div'); motif.className = 'home-motif'; motif.setAttribute('aria-hidden', 'true');
+  ['right', 'up', 'left', 'down'].forEach((direction) => { const icon = makeArrowIcon(direction); icon.classList.add('motif-arrow'); motif.append(icon); });
+  return motif;
 }
 
 function exitVector(direction) { return ({ up: '0,-150%', right: '150%,0', down: '0,150%', left: '-150%,0' })[direction]; }
@@ -299,12 +309,25 @@ function createArrowButton(arrow) {
 
 function createBarrierTile(barrier) { const tile = document.createElement('div'); tile.className = 'barrier-tile'; tile.dataset.barrierId = barrier.id; tile.style.gridRow = String(barrier.row + 1); tile.style.gridColumn = String(barrier.col + 1); tile.setAttribute('role', 'img'); tile.setAttribute('aria-label', getText(game.language).barrier); return tile; }
 
-function createButton(label, className, handler, { action, testId, playClick = true } = {}) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.textContent = label; if (action) button.dataset.action = action; if (testId) button.dataset.testid = testId; if (handler) button.addEventListener('click', () => { if (playClick) audio.play('uiClick'); handler(); }); return button; }
+function createButton(label, className, handler, { action, testId, playClick = true } = {}) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.textContent = label; if (action) button.dataset.action = action; if (testId) button.dataset.testid = testId; if (handler) button.addEventListener('click', () => { if (playClick) { audio.startMusic(); audio.play('uiClick'); } handler(); }); return button; }
 
 function createIconButton(label, icon, className, handler, testId, playClick = true) { const button = createButton('', `${className} icon-button`, handler, { testId, playClick }); button.append(icon); button.setAttribute('aria-label', label); button.title = label; return button; }
 
-function toggleLanguage() { game.language = game.language === 'ru' ? 'en' : 'ru'; persist(); render(); }
-function toggleSound() { const nextValue = !game.soundOn; if (nextValue) { game.soundOn = true; audio.setEnabled(true); audio.play('uiClick'); } else { audio.play('uiClick'); game.soundOn = false; audio.setEnabled(false); } persist(); render(); }
+function toggleLanguage() { audio.startMusic(); game.language = game.language === 'ru' ? 'en' : 'ru'; persist(); render(); }
+function toggleMusic() { game.musicOn = !game.musicOn; audio.setMusicEnabled(game.musicOn); if (game.musicOn) audio.startMusic(); persist(); render(); }
+function toggleSfx() { const next = !game.sfxOn; if (next) { game.sfxOn = true; audio.setSfxEnabled(true); audio.startMusic(); audio.play('uiClick'); } else { audio.play('uiClick'); game.sfxOn = false; audio.setSfxEnabled(false); } persist(); render(); }
+function toggleAudioPopover() { audio.startMusic(); audio.play('uiClick'); game.audioPopoverOpen = !game.audioPopoverOpen; render(); }
+function createAudioPopover() { const t = getText(game.language); const pop = document.createElement('div'); pop.className = 'audio-popover'; pop.dataset.testid = 'audio-popover'; const row = (label, enabled, handler, testId) => { const r = document.createElement('div'); r.className = 'audio-row'; const text = document.createElement('span'); text.textContent = label; const button = createButton(enabled ? t.on : t.off, `audio-toggle ${enabled ? 'is-on' : 'is-off'}`, handler, { testId }); r.append(text, button); return r; }; pop.append(row(t.music, game.musicOn, toggleMusic, 'music-toggle'), row(t.sounds, game.sfxOn, toggleSfx, 'sfx-toggle')); return pop; }
+function appendAudioPopover(container) { if (game.audioPopoverOpen) container.append(createAudioPopover()); }
+
+function renderBootScreen() {
+  const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'boot-screen';
+  const title = document.createElement('h1'); title.textContent = t.gameTitle;
+  const motif = makeDirectionMotif(); motif.classList.add('boot-motif');
+  const descriptor = document.createElement('p'); descriptor.textContent = t.bootDescriptor;
+  const hint = document.createElement('span'); hint.textContent = t.bootHint;
+  shell.append(title, motif, descriptor, hint); app.replaceChildren(shell);
+}
 
 function renderHomeScreen() {
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell home-screen';
@@ -315,9 +338,9 @@ function renderHomeScreen() {
   const modes = document.createElement('div'); modes.className = 'mode-list';
   const puzzleEntry = createModeEntry(t.puzzles, `30 ${t.levelsCount}`, true, () => goLevels('puzzle'), 'puzzle-mode-button');
   const routeUnlocked = import.meta.env.DEV || game.highestUnlockedLevel >= 5; const routeEntry = createModeEntry(t.route, `12 ${t.levelsCount}`, routeUnlocked, () => goLevels('route'), 'route-mode-button', routeUnlocked ? '' : `${t.unlockAfter} 5`);
-  const rushUnlocked = import.meta.env.DEV || game.highestUnlockedLevel >= 10; const rushEntry = createModeEntry(t.rush, game.rushBestScore ? `${t.bestResult}: ${game.rushBestScore}` : t.bestResult, rushUnlocked, startRush, 'rush-mode-button', rushUnlocked ? '' : `${t.unlockAfter} 10`);
+  const rushUnlocked = import.meta.env.DEV || game.highestUnlockedLevel >= 10; const rushMeta = game.rushBestScore > 0 ? `${t.best}: ${game.rushBestScore}` : `${RUSH_DURATION} ${t.seconds}`; const rushEntry = createModeEntry(t.rush, rushMeta, rushUnlocked, startRush, 'rush-mode-button', rushUnlocked ? '' : `${t.unlockAfter} 10`);
   modes.append(puzzleEntry, routeEntry, rushEntry);
-  const controls = document.createElement('div'); controls.className = 'menu-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle', false));
+  const controls = document.createElement('div'); controls.className = 'menu-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.sfxOn || game.musicOn ? t.soundOn : t.soundOff, makeSoundIcon(game.sfxOn || game.musicOn), `sound-button ${game.sfxOn || game.musicOn ? 'is-on' : 'is-off'}`, toggleAudioPopover, 'sound-toggle', false)); appendAudioPopover(controls);
   shell.append(heading, progress, actions, modes, controls); app.replaceChildren(shell);
 }
 
@@ -331,7 +354,7 @@ function renderLevelsScreen() {
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell levels-screen';
   const header = document.createElement('div'); header.className = 'menu-header'; header.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'levels-home-button'));
   const title = document.createElement('h1'); title.textContent = t.levels; header.append(title);
-  const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), `sound-button ${game.soundOn ? 'is-on' : 'is-off'}`, toggleSound, 'sound-toggle', false)); header.append(controls);
+  const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.sfxOn || game.musicOn ? t.soundOn : t.soundOff, makeSoundIcon(game.sfxOn || game.musicOn), `sound-button ${game.sfxOn || game.musicOn ? 'is-on' : 'is-off'}`, toggleAudioPopover, 'sound-toggle', false)); appendAudioPopover(controls); header.append(controls);
   const grid = document.createElement('div'); grid.className = 'level-grid';
   for (let index = 0; index < LEVELS.length; index += 1) {
     const levelNumber = index + 1; const unlocked = isLevelUnlocked(levelNumber, game.highestUnlockedLevel, import.meta.env.DEV); const button = createButton(String(levelNumber).padStart(2, '0'), 'level-token', () => startLevel(index), { testId: `level-button-${levelNumber}` }); button.dataset.level = String(levelNumber); button.setAttribute('aria-label', unlocked ? `${t.level} ${levelNumber}` : `${t.level} ${levelNumber}, ${t.locked}`); if (!unlocked) { button.disabled = true; button.classList.add('is-locked'); } else if (levelNumber < game.highestUnlockedLevel) button.classList.add('is-completed'); else if (levelNumber === game.levelIndex + 1) button.classList.add('is-current'); grid.append(button);
@@ -341,7 +364,7 @@ function renderLevelsScreen() {
 
 function renderRouteLevelsScreen() {
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell levels-screen';
-  const header = document.createElement('div'); header.className = 'menu-header'; header.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'levels-home-button')); const title = document.createElement('h1'); title.textContent = t.route; header.append(title); const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), 'sound-button', toggleSound, 'sound-toggle', false)); header.append(controls);
+  const header = document.createElement('div'); header.className = 'menu-header'; header.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'levels-home-button')); const title = document.createElement('h1'); title.textContent = t.route; header.append(title); const controls = document.createElement('div'); controls.className = 'menu-header-controls'; controls.append(createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.sfxOn || game.musicOn ? t.soundOn : t.soundOff, makeSoundIcon(game.sfxOn || game.musicOn), 'sound-button', toggleAudioPopover, 'sound-toggle', false)); appendAudioPopover(controls); header.append(controls);
   const grid = document.createElement('div'); grid.className = 'level-grid route-level-grid'; for (let index = 0; index < ROUTE_LEVELS.length; index += 1) { const n = index + 1; const unlocked = isLevelUnlocked(n, game.highestUnlockedRoute, import.meta.env.DEV); const button = createButton(String(n).padStart(2, '0'), 'level-token', () => startRoute(index), { testId: `route-level-button-${n}` }); button.disabled = !unlocked; button.setAttribute('aria-label', unlocked ? `${t.level} ${n}` : `${t.level} ${n}, ${t.locked}`); if (!unlocked) button.classList.add('is-locked'); else if (n < game.highestUnlockedRoute) button.classList.add('is-completed'); grid.append(button); }
   shell.append(header, grid); app.replaceChildren(shell);
 }
@@ -405,7 +428,7 @@ function createRouteTrace(path, layout) {
 }
 
 function routeHeader(titleText, progressText) {
-  const t = getText(game.language); const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = t.gameTitle; const group = document.createElement('div'); group.className = 'title-group'; const title = document.createElement('p'); title.className = 'level-label'; title.dataset.testid = 'level-number'; title.textContent = titleText; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = progressText; group.append(title, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.soundOn ? t.soundOn : t.soundOff, makeSoundIcon(game.soundOn), 'sound-button', toggleSound, 'sound-toggle', false)); header.append(brand, group, controls); return header;
+  const t = getText(game.language); const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = t.gameTitle; const group = document.createElement('div'); group.className = 'title-group'; const title = document.createElement('p'); title.className = 'level-label'; title.dataset.testid = 'level-number'; title.textContent = titleText; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = progressText; group.append(title, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(game.sfxOn || game.musicOn ? t.soundOn : t.soundOff, makeSoundIcon(game.sfxOn || game.musicOn), 'sound-button', toggleAudioPopover, 'sound-toggle', false)); appendAudioPopover(controls); header.append(brand, group, controls); return header;
 }
 
 function renderRouteGameScreen() {
@@ -426,7 +449,15 @@ function renderRushGameScreen() {
 
 function renderGameScreen() { if (game.mode === 'route') return renderRouteGameScreen(); if (game.mode === 'rush') return renderRushGameScreen(); return renderPuzzleGameScreen(); }
 
-function render() { document.body.dataset.mode = game.mode; if (game.screen === 'home') renderHomeScreen(); else if (game.screen === 'levels') renderLevelsScreen(); else renderGameScreen(); }
+function render() { document.body.dataset.mode = game.mode; if (game.screen === 'boot') renderBootScreen(); else if (game.screen === 'home') renderHomeScreen(); else if (game.screen === 'levels') renderLevelsScreen(); else renderGameScreen(); }
 
 window.addEventListener('resize', () => { if (!game.animating && game.screen === 'game') render(); });
+document.addEventListener('pointerdown', (event) => { if (game.audioPopoverOpen && !event.target.closest('.audio-popover, .sound-button')) { game.audioPopoverOpen = false; render(); } });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && game.audioPopoverOpen) { game.audioPopoverOpen = false; render(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) audio.pauseAll('visibility'); else audio.resumeAll('visibility'); });
+window.addEventListener('blur', () => audio.pauseAll('blur'));
+window.addEventListener('focus', () => audio.resumeAll('focus'));
+window.addEventListener('pagehide', () => audio.pauseAll('pagehide'));
+const onAppReady = () => { if (game.screen === 'boot' && !bootPreview) { game.screen = 'home'; render(); } };
 render();
+if (!bootPreview) queueMicrotask(onAppReady);

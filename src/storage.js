@@ -1,10 +1,12 @@
 const STORAGE_KEY = 'arrow-shift-save';
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 export const DEFAULT_SAVE = Object.freeze({
   saveVersion: SAVE_VERSION,
   language: 'ru',
   soundOn: true,
+  sfxOn: true,
+  musicOn: true,
   highestUnlockedLevel: 1,
   lastPlayedLevel: 1,
   highestUnlockedRoute: 1,
@@ -27,6 +29,8 @@ export function normalizeSave(value) {
     saveVersion: SAVE_VERSION,
     language: value.language === 'en' ? 'en' : 'ru',
     soundOn: value.soundOn !== false,
+    sfxOn: typeof value.sfxOn === 'boolean' ? value.sfxOn : value.soundOn !== false,
+    musicOn: typeof value.musicOn === 'boolean' ? value.musicOn : value.soundOn !== false,
     highestUnlockedLevel: highest,
     lastPlayedLevel: last,
     highestUnlockedRoute: clampLevel(value.highestUnlockedRoute ?? 1, 12),

@@ -13,4 +13,14 @@ describe('audio dispatch', () => {
     const audio = createAudioController();
     expect(audio.play('not-a-sound')).toBe(false);
   });
+
+  it('keeps SFX and music channels independently configurable', () => {
+    const audio = createAudioController();
+    audio.setSfxEnabled(false);
+    expect(audio.isSfxEnabled()).toBe(false);
+    expect(audio.isMusicEnabled()).toBe(true);
+    audio.setMusicEnabled(false);
+    expect(audio.isMusicEnabled()).toBe(false);
+    expect(audio.play('uiClick')).toBe(false);
+  });
 });
