@@ -22,11 +22,14 @@
 }
 
 * { box-sizing: border-box; }
-body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--page); overflow: hidden; }
+body { position: relative; isolation: isolate; min-width: 320px; min-height: 100vh; margin: 0; background: var(--page); overflow: hidden; }
+body::before { content: ""; position: fixed; z-index: -1; inset: 0; pointer-events: none; opacity: .035; background-image: repeating-linear-gradient(0deg, transparent 0 47px, rgb(37 42 39 / 34%) 48px), repeating-linear-gradient(90deg, transparent 0 47px, rgb(37 42 39 / 24%) 48px); }
+body[data-mode="route"]::before { opacity: .045; background-image: radial-gradient(circle at 18% 28%, rgb(62 116 101 / 42%) 0 1px, transparent 1.5px), repeating-linear-gradient(135deg, transparent 0 54px, rgb(62 116 101 / 23%) 55px); background-size: 96px 96px, auto; }
+body[data-mode="rush"]::before { opacity: .04; background-image: repeating-linear-gradient(12deg, transparent 0 42px, rgb(62 116 101 / 28%) 43px 44px, transparent 45px 86px); }
 button { font: inherit; -webkit-appearance: none; appearance: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-#app { display: grid; place-items: center; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+#app { position: relative; z-index: 1; display: grid; place-items: center; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
 .game-shell { display: grid; gap: 13px; width: var(--board-size, 520px); }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; height: 38px; padding: 0 2px; }
 p, span { margin: 0; }
@@ -133,11 +136,15 @@ p, span { margin: 0; }
 .route-marker-arrow { width: 42%; height: 42%; color: var(--accent); }
 .route-marker.is-target { z-index: 2; width: 44%; height: 44%; min-width: 30px; min-height: 30px; border: 2px solid var(--accent); color: var(--accent); background: rgb(250 248 242 / 45%); box-shadow: inset 0 0 0 3px rgb(62 116 101 / 10%); }
 .target-ring { width: 42%; height: 42%; border: 2px solid var(--accent); border-radius: 50%; background: var(--accent); box-shadow: inset 0 0 0 3px var(--board); }
+.route-marker-label { position: absolute; top: calc(100% + 2px); z-index: 3; color: var(--muted-ink); font-size: .58rem; font-weight: 760; line-height: 1; white-space: nowrap; pointer-events: none; }
 .route-marker.route-signal { z-index: 4; width: 26%; height: 26%; min-width: 12px; min-height: 12px; border: 2px solid var(--accent); background: var(--accent); color: transparent; box-shadow: 0 0 0 4px rgb(62 116 101 / 14%); transition: transform 150ms ease-out; }
 .route-trace { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; color: var(--accent); pointer-events: none; }
 .route-feedback { min-height: 20px; color: var(--muted-ink); text-align: center; font-size: .82rem; }
 .result-detail { color: var(--muted-ink); font-size: .78rem; line-height: 1.35; }
 .route-result-card, .rush-result-card { gap: 10px; }
+.rush-bonus { display: inline-block; margin-left: 4px; color: var(--accent); font-weight: 800; animation: rush-bonus-in 650ms ease-out both; }
+.rush-time-low { color: var(--accent); font-weight: 780; }
+@keyframes rush-bonus-in { from { opacity: 0; transform: translateY(2px); } 18% { opacity: 1; transform: translateY(0); } to { opacity: 0; } }
 .levels-screen { max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain; padding-bottom: 12px; }
 
 @media (max-width: 699px) {

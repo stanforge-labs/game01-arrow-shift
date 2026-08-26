@@ -47,4 +47,6 @@ Accent is reserved for SHIFT, active utility states and success actions. Avoid g
 
 Home and level-select screens reuse the same printed-puzzle surfaces: one compact composition, small physical controls and restrained level tokens. Sound controls use simple inline SVG and never introduce decorative icon packs. Route uses a clearly plated Start with a directional indicator, a full-cell target ring, a small accent signal and a thin trace; Rush keeps the same board and token language. Mode screens are not dashboards and should never become a shared mega-card.
 
+The page background may use a barely visible mode-specific CSS pattern (grid fragments for Puzzle, nodes/traces for Route, directional streaks for Rush). It stays quieter than the board; Route's Start and Target labels appear only on the first two levels as compact onboarding.
+
 Utility controls share one inline SVG language (`viewBox 0 0 24 24`, round 1.9px strokes, currentColor): home, restart and sound on/off use the same 44px tactile button. Result cards use a solid surface, a single vertical flow and full-width actions; no title or button is absolutely positioned. Procedural audio is short and dry: a layered UI click, a lower tile press, a compact exit snap, a restrained SHIFT sweep and muted blocked/pinned/barrier responses, all routed through one compressed master bus.

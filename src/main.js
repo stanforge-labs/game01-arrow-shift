@@ -51,6 +51,8 @@ const game = {
   rushSession: null,
   rushTimer: null,
   rushStatus: 'playing',
+  rushBonusVisible: false,
+  rushBonusTimer: null,
 };
 audio.setEnabled(game.soundOn);
 
@@ -83,6 +85,8 @@ function clearTimers() {
   game.routeFailTimer = null;
   window.clearInterval(game.rushTimer);
   game.rushTimer = null;
+  window.clearTimeout(game.rushBonusTimer);
+  game.rushBonusTimer = null;
 }
 
 function resetLevel() {
@@ -118,7 +122,7 @@ function startRoute(index) {
 
 function startRush() {
   clearTimers();
-  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); audio.play('rushStart');
+  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.rushBonusVisible = false; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); audio.play('rushStart');
   game.rushTimer = window.setInterval(() => {
     game.rushSession = tickRush(game.rushSession);
     if (game.rushSession.ended) endRush(); else render();
@@ -154,7 +158,7 @@ function finishRoute(status, reason) {
     const levelNumber = game.routeIndex + 1;
     game.highestUnlockedRoute = Math.max(game.highestUnlockedRoute, Math.min(levelNumber + 1, ROUTE_LEVELS.length));
     const oldBest = game.routeBestRotations[levelNumber];
-    if (oldBest === undefined || game.routeState.rotationsUsed < oldBest) game.routeBestRotations[levelNumber] = game.routeState.rotationsUsed;
+    if (oldBest === undefined || oldBest === 0 || game.routeState.rotationsUsed < oldBest) game.routeBestRotations[levelNumber] = game.routeState.rotationsUsed;
     persist();
     audio.play('routeSuccess');
   } else {
@@ -206,7 +210,7 @@ function onRushArrowClick(arrow) {
   audio.play('tilePress'); game.animating = true; game.exitingId = arrow.id; render();
   game.pendingExitTimer = window.setTimeout(() => {
     const result = applyMove(game.state, arrow.id); game.state = result.state; game.animating = false; game.exitingId = null; game.status = getGameStatus(game.state); game.rushSession = recordRushExit(game.rushSession); audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); render();
-    if (game.status === 'won') { game.rushSession = recordRushBoardClear(game.rushSession); audio.play('victory'); game.pendingPulseTimer = window.setTimeout(loadNextRushBoard, 220); }
+    if (game.status === 'won') { game.rushSession = recordRushBoardClear(game.rushSession); game.rushBonusVisible = true; window.clearTimeout(game.rushBonusTimer); game.rushBonusTimer = window.setTimeout(() => { game.rushBonusVisible = false; game.rushBonusTimer = null; render(); }, 650); audio.play('victory'); render(); game.pendingPulseTimer = window.setTimeout(loadNextRushBoard, 220); }
   }, 180);
 }
 
@@ -359,7 +363,7 @@ function createRouteMarker(kind, position, direction = null) {
   const t = getText(game.language); const marker = document.createElement('span'); marker.className = `route-marker ${kind}`; marker.style.gridRow = String(position.row + 1); marker.style.gridColumn = String(position.col + 1); marker.setAttribute('role', 'img'); marker.setAttribute('aria-label', kind === 'is-start' ? t.start : kind === 'is-target' ? t.target : t.route);
   if (kind === 'is-start') { const arrow = makeArrowIcon(direction); arrow.classList.add('route-marker-arrow'); marker.append(arrow); }
   else if (kind === 'is-target') { const ring = document.createElement('span'); ring.className = 'target-ring'; marker.append(ring); }
-  else { marker.textContent = ''; }
+  if ((kind === 'is-start' || kind === 'is-target') && game.routeIndex < 2) { marker.classList.add('show-label'); const label = document.createElement('span'); label.className = 'route-marker-label'; label.textContent = kind === 'is-start' ? t.start : t.target; marker.append(label); }
   return marker;
 }
 
@@ -400,7 +404,7 @@ function createRushResultCard() {
 }
 
 function renderRushGameScreen() {
-  const t = getText(game.language); const level = RUSH_TEMPLATES[game.rushSession.templateIndex]; const layout = getLayoutMetrics(level, { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell rush-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`); shell.append(routeHeader(t.rush, `${t.time}: ${game.rushSession.timeLeft}s · ${t.score}: ${game.rushSession.score} · ${t.combo}: x${Math.max(game.rushSession.combo, 1)}`));
+  const t = getText(game.language); const level = RUSH_TEMPLATES[game.rushSession.templateIndex]; const layout = getLayoutMetrics(level, { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell rush-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`); const header = routeHeader(t.rush, `${t.time}: ${game.rushSession.timeLeft}s · ${t.score}: ${game.rushSession.score} · ${t.combo}: x${Math.max(game.rushSession.combo, 1)}`); const progress = header.querySelector('.progress-label'); if (progress && game.rushSession.timeLeft <= 10) progress.classList.add('rush-time-low'); if (progress && game.rushBonusVisible) { const bonus = document.createElement('span'); bonus.className = 'rush-bonus'; bonus.textContent = t.rushBonus; progress.append(' ', bonus); } shell.append(header);
   const board = document.createElement('div'); board.className = 'board rush-board'; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout); level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.rushStatus === 'ended') board.append(createRushResultCard()); shell.append(board); app.replaceChildren(shell);
 }
 
