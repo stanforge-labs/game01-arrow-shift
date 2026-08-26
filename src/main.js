@@ -8,7 +8,7 @@ import { createAudioController, haptic } from './audio.js';
 import { ROUTE_LEVELS } from './route/levels.js';
 import { createRouteState, rotateRouteArrow, simulateRoute } from './route/model.js';
 import { RUSH_TEMPLATES, nextRushTemplateIndex } from './rush/levels.js';
-import { createRushSession, finishRush, recordRushBlocked, recordRushBoardClear, recordRushExit, tickRush } from './rush/model.js';
+import { RUSH_DURATION, createRushSession, finishRush, recordRushBlocked, recordRushBoardClear, recordRushExit, tickRush } from './rush/model.js';
 
 const app = document.querySelector('#app');
 const initialSave = loadSave();
@@ -53,6 +53,14 @@ const game = {
   rushStatus: 'playing',
   rushBonusVisible: false,
   rushBonusTimer: null,
+  rushHelpVisible: false,
+  rushHelpTimer: null,
+  rushComboPulse: false,
+  rushComboPulseTimer: null,
+  rushBoardEntering: false,
+  rushEntranceTimer: null,
+  rushNewBest: false,
+  rushHistory: [],
 };
 audio.setEnabled(game.soundOn);
 
@@ -87,6 +95,12 @@ function clearTimers() {
   game.rushTimer = null;
   window.clearTimeout(game.rushBonusTimer);
   game.rushBonusTimer = null;
+  window.clearTimeout(game.rushHelpTimer);
+  game.rushHelpTimer = null;
+  window.clearTimeout(game.rushComboPulseTimer);
+  game.rushComboPulseTimer = null;
+  window.clearTimeout(game.rushEntranceTimer);
+  game.rushEntranceTimer = null;
 }
 
 function resetLevel() {
@@ -122,7 +136,7 @@ function startRoute(index) {
 
 function startRush() {
   clearTimers();
-  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.rushBonusVisible = false; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); audio.play('rushStart');
+  game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = true; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); game.rushEntranceTimer = window.setTimeout(() => { game.rushBoardEntering = false; game.rushEntranceTimer = null; render(); }, 160); audio.play('rushStart');
   game.rushTimer = window.setInterval(() => {
     game.rushSession = tickRush(game.rushSession);
     if (game.rushSession.ended) endRush(); else render();
@@ -193,13 +207,15 @@ function onRouteArrowClick(arrow) {
 }
 
 function loadNextRushBoard() {
-  const nextIndex = nextRushTemplateIndex(game.rushSession.templateIndex, game.rushSession.boards);
+  const nextIndex = nextRushTemplateIndex(game.rushSession.templateIndex, game.rushSession.boards, game.rushHistory);
+  game.rushHistory = [...game.rushHistory, nextIndex].slice(-3);
   game.rushSession = { ...game.rushSession, templateIndex: nextIndex };
-  game.state = createFreshGameState(RUSH_TEMPLATES[nextIndex]); game.status = 'playing'; game.animating = false; game.exitingId = null; game.blockedId = null; game.rotatedIds = []; game.heldIds = []; game.shift = null; render();
+  game.state = createFreshGameState(RUSH_TEMPLATES[nextIndex]); game.status = 'playing'; game.animating = false; game.exitingId = null; game.blockedId = null; game.rotatedIds = []; game.heldIds = []; game.shift = null; game.rushBoardEntering = true; game.rushEntranceTimer = window.setTimeout(() => { game.rushBoardEntering = false; game.rushEntranceTimer = null; render(); }, 160); render();
 }
 
 function endRush() {
-  clearTimers(); game.rushSession = finishRush(game.rushSession); game.rushStatus = 'ended';
+  const previousBest = game.rushBestScore;
+  clearTimers(); game.rushSession = finishRush(game.rushSession); game.rushStatus = 'ended'; game.rushNewBest = game.rushSession.score > previousBest;
   game.rushBestScore = Math.max(game.rushBestScore, game.rushSession.score); game.rushBestBoards = Math.max(game.rushBestBoards, game.rushSession.boards); persist(); audio.play('rushEnd'); render();
 }
 
@@ -209,7 +225,7 @@ function onRushArrowClick(arrow) {
   if (blocker) { game.rushSession = recordRushBlocked(game.rushSession); game.blockedId = arrow.id; audio.play(blocker); haptic(18); render(); game.pendingBlockedTimer = window.setTimeout(() => { game.blockedId = null; render(); }, 180); return; }
   audio.play('tilePress'); game.animating = true; game.exitingId = arrow.id; render();
   game.pendingExitTimer = window.setTimeout(() => {
-    const result = applyMove(game.state, arrow.id); game.state = result.state; game.animating = false; game.exitingId = null; game.status = getGameStatus(game.state); game.rushSession = recordRushExit(game.rushSession); audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); render();
+    const result = applyMove(game.state, arrow.id); game.state = result.state; game.animating = false; game.exitingId = null; game.status = getGameStatus(game.state); game.rushSession = recordRushExit(game.rushSession); game.rushHelpVisible = false; window.clearTimeout(game.rushHelpTimer); game.rushHelpTimer = null; game.rushComboPulse = true; window.clearTimeout(game.rushComboPulseTimer); game.rushComboPulseTimer = window.setTimeout(() => { game.rushComboPulse = false; game.rushComboPulseTimer = null; render(); }, 140); audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); render();
     if (game.status === 'won') { game.rushSession = recordRushBoardClear(game.rushSession); game.rushBonusVisible = true; window.clearTimeout(game.rushBonusTimer); game.rushBonusTimer = window.setTimeout(() => { game.rushBonusVisible = false; game.rushBonusTimer = null; render(); }, 650); audio.play('victory'); render(); game.pendingPulseTimer = window.setTimeout(loadNextRushBoard, 220); }
   }, 180);
 }
@@ -400,12 +416,12 @@ function renderRouteGameScreen() {
 }
 
 function createRushResultCard() {
-  const t = getText(game.language); const card = document.createElement('div'); card.className = 'result-card rush-result-card'; card.dataset.testid = 'rush-result-card'; const title = document.createElement('strong'); title.textContent = t.rush; const detail = document.createElement('span'); detail.className = 'result-detail'; detail.textContent = `${t.score}: ${game.rushSession.score} · ${t.fields}: ${game.rushSession.boards}`; const best = document.createElement('span'); best.className = 'result-detail'; best.textContent = `${t.best}: ${game.rushBestScore}`; card.append(title, detail, best, createButton(t.again, 'primary-button', startRush, { testId: 'rush-again-button' }), createButton(t.home, 'secondary-button result-secondary', goHome)); return card;
+  const t = getText(game.language); const card = document.createElement('div'); card.className = 'result-card rush-result-card'; card.dataset.testid = 'rush-result-card'; const title = document.createElement('strong'); title.textContent = t.rush; const stat = (label, value) => { const row = document.createElement('span'); row.className = 'rush-result-stat'; row.innerHTML = `<small>${label}</small><b>${value}</b>`; return row; }; card.append(title, stat(t.score, game.rushSession.score), stat(t.best, game.rushBestScore), stat(t.fields, game.rushSession.boards)); if (game.rushNewBest) { const bestLine = document.createElement('span'); bestLine.className = 'rush-new-best'; bestLine.textContent = t.rushNewBest; card.append(bestLine); } card.append(createButton(t.again, 'primary-button', startRush, { testId: 'rush-again-button' }), createButton(t.home, 'secondary-button result-secondary', goHome)); return card;
 }
 
 function renderRushGameScreen() {
-  const t = getText(game.language); const level = RUSH_TEMPLATES[game.rushSession.templateIndex]; const layout = getLayoutMetrics(level, { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell rush-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`); const header = routeHeader(t.rush, `${t.time}: ${game.rushSession.timeLeft}s · ${t.score}: ${game.rushSession.score} · ${t.combo}: x${Math.max(game.rushSession.combo, 1)}`); const progress = header.querySelector('.progress-label'); if (progress && game.rushSession.timeLeft <= 10) progress.classList.add('rush-time-low'); if (progress && game.rushBonusVisible) { const bonus = document.createElement('span'); bonus.className = 'rush-bonus'; bonus.textContent = t.rushBonus; progress.append(' ', bonus); } shell.append(header);
-  const board = document.createElement('div'); board.className = 'board rush-board'; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout); level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.rushStatus === 'ended') board.append(createRushResultCard()); shell.append(board); app.replaceChildren(shell);
+  const t = getText(game.language); const level = RUSH_TEMPLATES[game.rushSession.templateIndex]; const layout = getLayoutMetrics(level, { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell rush-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`); const header = routeHeader(t.rush, ''); const titleGroup = header.querySelector('.title-group'); const progress = header.querySelector('.progress-label'); progress.classList.add('rush-progress-placeholder'); const hud = document.createElement('div'); hud.className = 'rush-hud'; const makeStat = (label, value, className) => { const stat = document.createElement('div'); stat.className = `rush-stat ${className}`; const statLabel = document.createElement('span'); statLabel.textContent = label; const statValue = document.createElement('strong'); statValue.textContent = value; stat.append(statLabel, statValue); return stat; }; const timerStat = makeStat(t.time, String(game.rushSession.timeLeft), 'rush-timer'); const isLowTime = game.rushSession.timeLeft <= 10; if (isLowTime) timerStat.classList.add('rush-time-low'); if (game.rushBonusVisible) { const bonus = document.createElement('em'); bonus.className = 'rush-bonus'; bonus.textContent = t.rushBonus; timerStat.append(bonus); } const scoreStat = makeStat(t.score, String(game.rushSession.score), 'rush-score'); const comboStat = makeStat(t.combo, `×${Math.max(game.rushSession.combo, 1)}`, `rush-combo${game.rushComboPulse ? ' is-pulsing' : ''}`); hud.append(timerStat, scoreStat, comboStat); const timeBar = document.createElement('div'); timeBar.className = `rush-time-bar${isLowTime ? ' is-low' : ''}`; timeBar.dataset.testid = 'rush-time-bar'; timeBar.style.setProperty('--rush-time-progress', `${Math.min(game.rushSession.timeLeft / RUSH_DURATION, 1) * 100}%`); titleGroup.append(hud, timeBar); shell.append(header);
+  const board = document.createElement('div'); board.className = `board rush-board${game.rushBoardEntering ? ' is-entering' : ''}${game.status === 'won' ? ' is-clearing' : ''}${game.rushStatus === 'ended' ? ' has-result' : ''}`; board.dataset.resultStatus = game.rushStatus === 'ended' ? 'won' : ''; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout); level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.rushStatus === 'ended') board.append(createRushResultCard()); shell.append(board); if (game.rushHelpVisible && game.rushStatus === 'playing') { const hint = document.createElement('p'); hint.className = 'hint rush-hint'; hint.textContent = t.rushHint; shell.append(hint); } app.replaceChildren(shell);
 }
 
 function renderGameScreen() { if (game.mode === 'route') return renderRouteGameScreen(); if (game.mode === 'rush') return renderRushGameScreen(); return renderPuzzleGameScreen(); }

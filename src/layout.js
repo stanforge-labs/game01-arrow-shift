@@ -5,7 +5,9 @@ const BOARD_BORDER = 2;
 export function getLayoutMetrics(level, { viewportWidth, viewportHeight }) {
   const gridSize = Math.max(level.rows, level.cols);
   const desktopTarget = 220 + (gridSize * 50);
-  const target = viewportWidth < 700 ? Math.round(desktopTarget * 0.89) : desktopTarget;
+  const target = viewportWidth < 700
+    ? Math.round(desktopTarget * 0.89)
+    : Math.round(desktopTarget * (viewportWidth >= 1100 ? 1.12 : 1));
   const requestedBoard = Math.min(
     target,
     Math.max(0, viewportWidth - PAGE_HORIZONTAL_PADDING),

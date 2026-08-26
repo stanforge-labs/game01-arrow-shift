@@ -45,6 +45,8 @@ Arrows use one custom filled SVG silhouette rotated for all four directions. The
 
 Accent is reserved for SHIFT, active utility states and success actions. Avoid gradients, glow, excessive rounded cards, decorative uppercase branding, background imagery and AI-looking effects.
 
+Rush keeps timer as the strongest HUD value, followed by score and combo. A 3–4px accent time bar sits below the HUD; +4s and combo emphasis are brief, non-modal feedback. Desktop uses a wider plain rail-plus-board composition and a slightly more visible but sparse mode pattern around the outer edges. Result overlays use a separate translucent board backdrop and an opaque card centered on the board; tutorial labels are hidden while a result is shown.
+
 Home and level-select screens reuse the same printed-puzzle surfaces: one compact composition, small physical controls and restrained level tokens. Sound controls use simple inline SVG and never introduce decorative icon packs. Route uses a clearly plated Start with a directional indicator, a full-cell target ring, a small accent signal and a thin trace; Rush keeps the same board and token language. Mode screens are not dashboards and should never become a shared mega-card.
 
 The page background may use a barely visible mode-specific CSS pattern (grid fragments for Puzzle, nodes/traces for Route, directional streaks for Rush). It stays quieter than the board; Route's Start and Target labels appear only on the first two levels as compact onboarding.
