@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-yandex/
+release/*.zip
 coverage/
 debug/
 .playwright-cli/

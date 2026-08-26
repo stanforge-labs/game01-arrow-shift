@@ -108,7 +108,7 @@ async function initializePlayer() {
 export async function initPlatform(callbacks = {}) {
   if (state.initialized) return state;
   state.callbacks = callbacks;
-  installDevMock();
+  if (import.meta.env.DEV) installDevMock();
   if (!window.YaGames && !isLocalHost()) await loadSdkScript();
   try {
     if (window.YaGames?.init) {

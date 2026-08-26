@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
+    "build:yandex": "vite build --base=./ --outDir dist-yandex",
+    "release:audit": "node scripts/release-audit.js",
     "test": "vitest run",
     "levels:report": "node scripts/levels-report.js",
     "content:report": "node scripts/content-report.js"
