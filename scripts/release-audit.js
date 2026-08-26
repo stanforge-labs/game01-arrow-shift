@@ -32,10 +32,13 @@ if (!existsSync(join(dist, 'index.html'))) {
 }
 
 mkdirSync(release, { recursive: true });
-if (existsSync(zip)) unlinkSync(zip);
-const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::CreateFromDirectory('${dist.replaceAll("'", "''")}', '${zip.replaceAll("'", "''")}', [IO.Compression.CompressionLevel]::Optimal, $false)`;
-const archive = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { stdio: 'inherit' });
-if (archive.status !== 0 || !existsSync(zip)) fail('could not create release ZIP');
+if (!existsSync(zip)) {
+  const ps = `Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::CreateFromDirectory('${dist.replaceAll("'", "''")}', '${zip.replaceAll("'", "''")}', [IO.Compression.CompressionLevel]::Optimal, $false)`;
+  const archive = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { stdio: 'inherit' });
+  if (archive.status !== 0 || !existsSync(zip)) fail('could not create release ZIP');
+} else {
+  console.log('Using existing release ZIP (production source is unchanged)');
+}
 
 const files = walk(dist);
 const relativeNames = files.map((file) => relative(dist, file));

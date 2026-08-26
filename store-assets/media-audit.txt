@@ -1,0 +1,21 @@
+Arrow Shift store media audit
+
+PASS icon/icon-512.png | 512x512 | 47152 bytes | PNG
+PASS icon/icon-maskable-512.png | 512x512 | 48291 bytes | PNG
+PASS cover/cover-800x470.png | 800x470 | 122563 bytes | PNG
+PASS storefront/storefront-1560x520.png | 1560x520 | 198053 bytes | PNG
+PASS screenshots/mobile/01-mobile-puzzle.png | 720x1280 | 96508 bytes | PNG
+PASS screenshots/mobile/02-mobile-puzzle-hard.png | 720x1280 | 116527 bytes | PNG
+PASS screenshots/mobile/03-mobile-route.png | 720x1280 | 76111 bytes | PNG
+PASS screenshots/mobile/04-mobile-rush.png | 720x1280 | 60769 bytes | PNG
+PASS screenshots/desktop/01-desktop-puzzle.png | 1280x720 | 123725 bytes | PNG
+PASS screenshots/desktop/02-desktop-puzzle-hard.png | 1280x720 | 146817 bytes | PNG
+PASS screenshots/desktop/03-desktop-route.png | 1280x720 | 102554 bytes | PNG
+PASS screenshots/desktop/04-desktop-rush.png | 1280x720 | 63660 bytes | PNG
+
+Manual moderation checks:
+PASS icon and cover are authored vector compositions, not gameplay screenshots
+PASS screenshots contain real game scenes without browser chrome or platform UI
+PASS no external/copyrighted assets, fake badges, ratings or promo labels
+PASS filenames use latin letters, numbers and hyphens only
+PASS gameplay modes represented: Puzzle, Pinned + Barrier, Route and Rush

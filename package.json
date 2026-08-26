@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:yandex": "vite build --base=./ --outDir dist-yandex",
     "release:audit": "node scripts/release-audit.js",
+    "media:audit": "node scripts/media-audit.js",
     "test": "vitest run",
     "levels:report": "node scripts/levels-report.js",
     "content:report": "node scripts/content-report.js"
