@@ -40,6 +40,7 @@ export function createAudioController() {
   let musicNodes = [];
   let musicTimer = null;
   let musicStep = 0;
+  let userGesture = false;
 
   function ensureContext() {
     if (typeof window === 'undefined' || (!sfxOn && !musicOn)) return null;
@@ -77,6 +78,7 @@ export function createAudioController() {
   }
 
   function startMusic() {
+    userGesture = true;
     if (!musicOn || !ensureContext() || musicTimer) return;
     musicGain.gain.cancelScheduledValues(context.currentTime); musicGain.gain.setValueAtTime(0.0001, context.currentTime); musicGain.gain.linearRampToValueAtTime(0.045, context.currentTime + 0.8);
     playChord(); musicTimer = window.setInterval(playChord, 10500);
@@ -84,6 +86,7 @@ export function createAudioController() {
 
   function play(name) {
     if (!SOUND_NAMES.includes(name) || !sfxOn) return false;
+    userGesture = true;
     const audio = ensureContext(); if (!audio || !sfxGain) return false;
     const pitch = 1 + ((Math.random() * 2 - 1) * 0.025);
     if (name === 'uiClick') { noise(audio, sfxGain, 0.014, 0.035, 1500); envelope(audio, sfxGain, 245 * pitch, 0.055, 0.07, 'triangle', 205 * pitch); }
@@ -114,7 +117,7 @@ export function createAudioController() {
     isSfxEnabled() { return sfxOn; },
     isMusicEnabled() { return musicOn; },
     pauseAll() { if (context && context.state === 'running') context.suspend().catch(() => {}); },
-    resumeAll() { if (context && (sfxOn || musicOn)) context.resume().catch(() => {}); if (musicOn) startMusic(); },
+    resumeAll() { if (context && (sfxOn || musicOn)) context.resume().catch(() => {}); if (musicOn && userGesture) startMusic(); },
   };
 }
 

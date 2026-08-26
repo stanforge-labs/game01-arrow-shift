@@ -9,11 +9,14 @@ import { ROUTE_LEVELS } from './route/levels.js';
 import { createRouteState, rotateRouteArrow, simulateRoute } from './route/model.js';
 import { RUSH_TEMPLATES, nextRushTemplateIndex } from './rush/levels.js';
 import { RUSH_DURATION, createRushSession, finishRush, recordRushBlocked, recordRushBoardClear, recordRushExit, tickRush } from './rush/model.js';
+import { gameReady, gameplayStart, gameplayStop, getPlatformLanguage, initPlatform } from './platform/yandex.js';
 
 const app = document.querySelector('#app');
 const initialSave = loadSave();
 const audio = createAudioController();
 const bootPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('screen') === 'boot';
+let hasSavedState = false;
+try { hasSavedState = Boolean(window.localStorage.getItem('arrow-shift-save')); } catch { hasSavedState = false; }
 app.addEventListener('contextmenu', (event) => {
   if (event.target.closest('.game-shell')) event.preventDefault();
 });
@@ -64,9 +67,46 @@ const game = {
   rushEntranceTimer: null,
   rushNewBest: false,
   rushHistory: [],
+  platformPaused: false,
+  gameplayBeforePause: false,
 };
 audio.setSfxEnabled(game.sfxOn);
 audio.setMusicEnabled(game.musicOn);
+
+function startRushTimer() {
+  if (game.rushTimer || !game.rushSession || game.rushStatus !== 'playing' || game.platformPaused) return;
+  game.rushTimer = window.setInterval(() => {
+    game.rushSession = tickRush(game.rushSession);
+    if (game.rushSession.ended) endRush(); else render();
+  }, 1000);
+}
+
+function stopRushTimer() {
+  window.clearInterval(game.rushTimer);
+  game.rushTimer = null;
+}
+
+function pauseGameplay() {
+  if (game.platformPaused) return;
+  game.platformPaused = true;
+  game.gameplayBeforePause = game.screen === 'game' && game.status === 'playing' && game.rushStatus !== 'ended' && game.routeStatus !== 'success';
+  stopRushTimer();
+  window.clearTimeout(game.routeRunTimer); game.routeRunTimer = null;
+  gameplayStop();
+  audio.pauseAll('platform');
+}
+
+function resumeGameplay() {
+  if (!game.platformPaused) return;
+  game.platformPaused = false;
+  audio.resumeAll('platform');
+  if (game.gameplayBeforePause && game.screen === 'game' && document.visibilityState !== 'hidden') {
+    if (game.mode === 'rush') startRushTimer();
+    if (game.mode === 'route' && game.routeStatus === 'running') scheduleRouteAdvance();
+    gameplayStart();
+  }
+  game.gameplayBeforePause = false;
+}
 
 function currentLevel() { return LEVELS[game.levelIndex]; }
 
@@ -121,6 +161,7 @@ function resetLevel() {
   game.shift = null;
   persist();
   render();
+  if (!game.platformPaused) gameplayStart();
 }
 
 function startLevel(index) {
@@ -137,20 +178,19 @@ function startRoute(index) {
   if (!Number.isInteger(index) || index < 0 || index >= ROUTE_LEVELS.length) return;
   if (!isLevelUnlocked(index + 1, game.highestUnlockedRoute, import.meta.env.DEV)) return;
   clearTimers();
-  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; game.screen = 'game'; render();
+  game.mode = 'route'; game.routeIndex = index; game.routeState = createRouteState(ROUTE_LEVELS[index]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; game.screen = 'game'; render(); if (!game.platformPaused) gameplayStart();
 }
 
 function startRush() {
   clearTimers();
   game.mode = 'rush'; game.rushSession = createRushSession(); game.rushStatus = 'playing'; game.status = 'playing'; game.animating = false; game.exitingId = null; game.rushBonusVisible = false; game.rushHelpVisible = true; game.rushNewBest = false; game.rushHistory = []; game.screen = 'game'; game.levelIndex = nextRushTemplateIndex(-1, 0, game.rushHistory); game.rushHistory.push(game.levelIndex); game.rushSession.templateIndex = game.levelIndex; game.state = createFreshGameState(RUSH_TEMPLATES[game.levelIndex]); game.rushBoardEntering = false; game.rushHelpTimer = window.setTimeout(() => { game.rushHelpVisible = false; game.rushHelpTimer = null; render(); }, 3000); audio.startMusic(); audio.play('rushStart');
-  game.rushTimer = window.setInterval(() => {
-    game.rushSession = tickRush(game.rushSession);
-    if (game.rushSession.ended) endRush(); else render();
-  }, 1000);
+  startRushTimer();
   render();
+  if (!game.platformPaused) gameplayStart();
 }
 
 function goHome() {
+  gameplayStop();
   clearTimers();
   game.animating = false;
   game.screen = 'home';
@@ -159,6 +199,7 @@ function goHome() {
 }
 
 function goLevels(mode = game.mode === 'route' ? 'route' : 'puzzle') {
+  gameplayStop();
   clearTimers();
   game.animating = false;
   game.mode = mode;
@@ -168,12 +209,13 @@ function goLevels(mode = game.mode === 'route' ? 'route' : 'puzzle') {
 
 function resetRoute() {
   clearTimers();
-  game.routeState = createRouteState(ROUTE_LEVELS[game.routeIndex]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; render();
+  game.routeState = createRouteState(ROUTE_LEVELS[game.routeIndex]); game.routeStatus = 'planning'; game.routePath = []; game.routeStep = 0; game.routeRunResult = null; game.routeReason = null; render(); if (!game.platformPaused) gameplayStart();
 }
 
 function finishRoute(status, reason) {
   game.routeStatus = status;
   game.routeReason = reason ?? null;
+  gameplayStop();
   if (status === 'success') {
     const levelNumber = game.routeIndex + 1;
     game.highestUnlockedRoute = Math.max(game.highestUnlockedRoute, Math.min(levelNumber + 1, ROUTE_LEVELS.length));
@@ -187,25 +229,29 @@ function finishRoute(status, reason) {
       game.routeStatus = 'planning';
       game.routeFailTimer = null;
       render();
+      if (!game.platformPaused) gameplayStart();
       window.setTimeout(() => { if (game.routeStatus === 'planning') { game.routePath = []; game.routeStep = 0; game.routeReason = null; render(); } }, 120);
     }, 760);
   }
   render();
 }
 
-function runRoute() {
-  if (game.routeStatus !== 'planning' || game.routeState.rotationsUsed > game.routeState.rotationLimit) return;
-  clearTimers(); const result = simulateRoute(game.routeState); game.routeStatus = 'running'; game.routeStep = 0; game.routePath = result.path; game.routeRunResult = result; game.routeReason = null; audio.play('routeRun'); render();
-  const advance = () => {
+function scheduleRouteAdvance() {
+  const result = game.routeRunResult;
+  if (!result || game.routeStatus !== 'running' || game.platformPaused) return;
+  game.routeRunTimer = window.setTimeout(() => {
     if (game.routeStep >= result.path.length - 1) { finishRoute(result.success ? 'success' : 'fail', result.reason); return; }
-    game.routeStep += 1; if (game.routeStep > 0) audio.play('routeMove'); render();
-    game.routeRunTimer = window.setTimeout(advance, 150);
-  };
-  game.routeRunTimer = window.setTimeout(advance, 150);
+    game.routeStep += 1; if (game.routeStep > 0) audio.play('routeMove'); render(); scheduleRouteAdvance();
+  }, 150);
+}
+
+function runRoute() {
+  if (game.platformPaused || game.routeStatus !== 'planning' || game.routeState.rotationsUsed > game.routeState.rotationLimit) return;
+  clearTimers(); const result = simulateRoute(game.routeState); game.routeStatus = 'running'; game.routeStep = 0; game.routePath = result.path; game.routeRunResult = result; game.routeReason = null; audio.play('routeRun'); render(); scheduleRouteAdvance();
 }
 
 function onRouteArrowClick(arrow) {
-  if (game.routeStatus !== 'planning') return;
+  if (game.platformPaused || game.routeStatus !== 'planning') return;
   if (arrow.pinned) { audio.play('pinnedHold'); haptic(18); return; }
   if (game.routeState.rotationsUsed >= game.routeState.rotationLimit) return;
   const next = rotateRouteArrow(game.routeState, arrow.id);
@@ -227,12 +273,12 @@ function loadNextRushBoard() {
 
 function endRush() {
   const previousBest = game.rushBestScore;
-  clearTimers(); game.rushSession = finishRush(game.rushSession); game.rushStatus = 'ended'; game.rushNewBest = game.rushSession.score > previousBest;
+  gameplayStop(); clearTimers(); game.rushSession = finishRush(game.rushSession); game.rushStatus = 'ended'; game.rushNewBest = game.rushSession.score > previousBest;
   game.rushBestScore = Math.max(game.rushBestScore, game.rushSession.score); game.rushBestBoards = Math.max(game.rushBestBoards, game.rushSession.boards); persist(); audio.play('rushEnd'); render();
 }
 
 function onRushArrowClick(arrow) {
-  if (game.rushStatus !== 'playing' || game.animating) return;
+  if (game.platformPaused || game.rushStatus !== 'playing' || game.animating) return;
   const blocker = blockerType(arrow);
   if (blocker) { game.rushSession = recordRushBlocked(game.rushSession); game.blockedId = arrow.id; audio.play(blocker); haptic(18); render(); game.pendingBlockedTimer = window.setTimeout(() => { game.blockedId = null; render(); }, 180); return; }
   audio.play('tilePress'); game.animating = true; game.exitingId = arrow.id; render();
@@ -283,7 +329,7 @@ function blockerType(arrow) {
 
 function onArrowClick(arrow) {
   if (game.mode === 'rush') return onRushArrowClick(arrow);
-  if (game.animating || game.status !== 'playing') return;
+  if (game.platformPaused || game.animating || game.status !== 'playing') return;
   const blocker = blockerType(arrow);
   if (blocker) {
     game.blockedId = arrow.id; audio.play(blocker); haptic(blocker === 'blocked' ? 20 : 18); render();
@@ -296,7 +342,7 @@ function onArrowClick(arrow) {
     game.pendingExitTimer = null;
     const result = applyMove(game.state, arrow.id);
     game.state = result.state; game.rotatedIds = result.shift.rotatedIds; game.heldIds = result.shift.heldIds; game.shift = result.shift; game.exitingId = null; game.status = getGameStatus(game.state); game.animating = false;
-    audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); if (result.shift.heldIds.length) { audio.play('pinnedHold'); haptic(18); } if (game.status === 'won') { audio.play('victory'); game.highestUnlockedLevel = Math.max(game.highestUnlockedLevel, Math.min(game.levelIndex + 2, LEVELS.length)); persist(); }
+    audio.play('exit'); if (result.shift.rotatedIds.length || result.shift.heldIds.length) audio.play('shift'); if (result.shift.heldIds.length) { audio.play('pinnedHold'); haptic(18); } if (game.status === 'won') { gameplayStop(); audio.play('victory'); game.highestUnlockedLevel = Math.max(game.highestUnlockedLevel, Math.min(game.levelIndex + 2, LEVELS.length)); persist(); } else if (game.status === 'dead-end') gameplayStop();
     render();
     game.pendingPulseTimer = window.setTimeout(() => { game.pendingPulseTimer = null; game.rotatedIds = []; game.heldIds = []; game.shift = null; render(); }, 260);
   }, 220);
@@ -318,9 +364,19 @@ function toggleMusic() { game.musicOn = !game.musicOn; audio.setMusicEnabled(gam
 function toggleSfx() { const next = !game.sfxOn; if (next) { game.sfxOn = true; audio.setSfxEnabled(true); audio.startMusic(); audio.play('uiClick'); } else { audio.play('uiClick'); game.sfxOn = false; audio.setSfxEnabled(false); } persist(); render(); }
 function toggleAudioPopover() { audio.startMusic(); audio.play('uiClick'); game.audioPopoverOpen = !game.audioPopoverOpen; render(); }
 function createAudioPopover() { const t = getText(game.language); const pop = document.createElement('div'); pop.className = 'audio-popover'; pop.dataset.testid = 'audio-popover'; const row = (label, enabled, handler, testId) => { const r = document.createElement('div'); r.className = 'audio-row'; const text = document.createElement('span'); text.textContent = label; const button = createButton(enabled ? t.on : t.off, `audio-toggle ${enabled ? 'is-on' : 'is-off'}`, handler, { testId }); r.append(text, button); return r; }; pop.append(row(t.music, game.musicOn, toggleMusic, 'music-toggle'), row(t.sounds, game.sfxOn, toggleSfx, 'sfx-toggle')); return pop; }
-function appendAudioPopover(container) { if (game.audioPopoverOpen) container.append(createAudioPopover()); }
+function positionAudioPopover() {
+  const pop = document.querySelector('.audio-popover'); const anchor = document.querySelector('.sound-button');
+  if (!pop || !anchor) return;
+  const anchorRect = anchor.getBoundingClientRect(); const popRect = pop.getBoundingClientRect(); const edge = 12;
+  const down = anchorRect.bottom + 8; const up = anchorRect.top - popRect.height - 8;
+  const top = down + popRect.height <= window.innerHeight - edge ? down : Math.max(edge, up);
+  const left = Math.min(Math.max(edge, anchorRect.right - popRect.width), Math.max(edge, window.innerWidth - popRect.width - edge));
+  pop.style.top = `${Math.round(top)}px`; pop.style.left = `${Math.round(left)}px`;
+}
+function appendAudioPopover(container) { if (game.audioPopoverOpen) { const pop = createAudioPopover(); pop.style.visibility = 'hidden'; container.append(pop); queueMicrotask(() => { positionAudioPopover(); pop.style.visibility = 'visible'; }); } }
 
 function renderBootScreen() {
+  app.classList.add('boot-host');
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'boot-screen';
   const title = document.createElement('h1'); title.textContent = t.gameTitle;
   const motif = makeDirectionMotif(); motif.classList.add('boot-motif');
@@ -330,6 +386,7 @@ function renderBootScreen() {
 }
 
 function renderHomeScreen() {
+  app.classList.remove('boot-host');
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell home-screen';
   const heading = document.createElement('div'); heading.className = 'hub-heading'; const wordmark = document.createElement('h1'); wordmark.className = 'home-wordmark'; wordmark.textContent = t.gameTitle; heading.append(wordmark, makeDirectionMotif());
   const hasProgress = game.highestUnlockedLevel > 1 || game.lastPlayedPuzzleLevel > 1;
@@ -350,6 +407,7 @@ function createModeEntry(label, meta, unlocked, handler, testId, lockText = '') 
 }
 
 function renderLevelsScreen() {
+  app.classList.remove('boot-host');
   if (game.mode === 'route') return renderRouteLevelsScreen();
   const t = getText(game.language); const shell = document.createElement('section'); shell.className = 'menu-shell levels-screen';
   const header = document.createElement('div'); header.className = 'menu-header'; header.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'levels-home-button'));
@@ -391,6 +449,7 @@ function createResultCard() {
 }
 
 function renderPuzzleGameScreen() {
+  app.classList.remove('boot-host');
   const t = getText(game.language); const layout = getLayoutMetrics(currentLevel(), { viewportWidth: window.innerWidth, viewportHeight: window.innerHeight }); const shell = document.createElement('section'); shell.className = 'game-shell'; shell.style.setProperty('--board-size', `${layout.boardSize}px`); shell.style.setProperty('--tile-size', `${layout.tileSize}px`);
   const header = document.createElement('header'); header.className = 'topbar'; const brand = document.createElement('div'); brand.className = 'desktop-brand'; brand.textContent = t.gameTitle; const titleGroup = document.createElement('div'); titleGroup.className = 'title-group'; const level = document.createElement('p'); level.className = 'level-label'; level.dataset.testid = 'level-number'; level.textContent = `${t.level} ${game.levelIndex + 1}`; const progress = document.createElement('span'); progress.className = 'progress-label'; progress.textContent = `${game.levelIndex + 1} / ${LEVELS.length}`; titleGroup.append(level, progress); const controls = document.createElement('div'); controls.className = 'topbar-controls'; controls.append(createIconButton(t.home, makeHomeIcon(), 'home-button', goHome, 'game-home-button'), createButton(t.language, 'text-button language-button', toggleLanguage), createIconButton(t.restart, makeRestartIcon(), 'restart-button', resetLevel, 'restart-button')); header.append(brand, titleGroup, controls);
   const board = document.createElement('div'); board.className = `board ${game.rotatedIds.length > 0 ? 'is-shifting' : ''} ${game.status !== 'playing' ? 'has-result' : ''}`; board.style.setProperty('--columns', currentLevel().cols); board.style.setProperty('--rows', currentLevel().rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); if (game.shift) { board.classList.add('has-shift-line'); board.dataset.shiftAxis = game.shift.axis; board.style.setProperty('--shift-line-position', `${((game.shift.index + 0.5) / (game.shift.axis === 'row' ? currentLevel().rows : currentLevel().cols)) * 100}%`); } board.dataset.testid = 'game-board'; const gridLines = document.createElement('div'); gridLines.className = 'grid-lines'; gridLines.setAttribute('aria-hidden', 'true'); for (let index = 1; index < layout.gridSize; index += 1) { const vertical = document.createElement('span'); vertical.className = 'grid-line grid-line-vertical'; vertical.style.left = `${index * layout.cellSize}px`; gridLines.append(vertical); const horizontal = document.createElement('span'); horizontal.className = 'grid-line grid-line-horizontal'; horizontal.style.top = `${index * layout.cellSize}px`; gridLines.append(horizontal); } board.append(gridLines); board.setAttribute('aria-label', `${t.gameTitle}, ${t.level} ${game.levelIndex + 1}`); game.state.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow)));
@@ -447,17 +506,25 @@ function renderRushGameScreen() {
   const board = document.createElement('div'); board.className = `board rush-board${game.rushBoardEntering ? ' is-entering' : ''}${game.status === 'won' ? ' is-clearing' : ''}${game.rushStatus === 'ended' ? ' has-result' : ''}`; board.dataset.resultStatus = game.rushStatus === 'ended' ? 'won' : ''; board.style.setProperty('--columns', level.cols); board.style.setProperty('--rows', level.rows); board.style.setProperty('--cell-size', `${layout.cellSize}px`); board.style.setProperty('--grid-pixel-size', `${layout.gridPixelSize}px`); board.style.setProperty('--board-padding', `${layout.boardPadding}px`); board.dataset.testid = 'game-board'; gridLinesFor(board, layout); level.barriers.forEach((barrier) => board.append(createBarrierTile(barrier))); game.state.arrows.forEach((arrow) => board.append(createArrowButton(arrow))); if (game.rushStatus === 'ended') board.append(createRushResultCard()); shell.append(board); if (game.rushHelpVisible && game.rushStatus === 'playing') { const hint = document.createElement('p'); hint.className = 'hint rush-hint'; hint.textContent = t.rushHint; shell.append(hint); } app.replaceChildren(shell);
 }
 
-function renderGameScreen() { if (game.mode === 'route') return renderRouteGameScreen(); if (game.mode === 'rush') return renderRushGameScreen(); return renderPuzzleGameScreen(); }
+function renderGameScreen() { app.classList.remove('boot-host'); if (game.mode === 'route') return renderRouteGameScreen(); if (game.mode === 'rush') return renderRushGameScreen(); return renderPuzzleGameScreen(); }
 
 function render() { document.body.dataset.mode = game.mode; if (game.screen === 'boot') renderBootScreen(); else if (game.screen === 'home') renderHomeScreen(); else if (game.screen === 'levels') renderLevelsScreen(); else renderGameScreen(); }
 
 window.addEventListener('resize', () => { if (!game.animating && game.screen === 'game') render(); });
+window.addEventListener('resize', positionAudioPopover);
+window.addEventListener('scroll', positionAudioPopover, { passive: true });
 document.addEventListener('pointerdown', (event) => { if (game.audioPopoverOpen && !event.target.closest('.audio-popover, .sound-button')) { game.audioPopoverOpen = false; render(); } });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && game.audioPopoverOpen) { game.audioPopoverOpen = false; render(); } });
-document.addEventListener('visibilitychange', () => { if (document.hidden) audio.pauseAll('visibility'); else audio.resumeAll('visibility'); });
-window.addEventListener('blur', () => audio.pauseAll('blur'));
-window.addEventListener('focus', () => audio.resumeAll('focus'));
-window.addEventListener('pagehide', () => audio.pauseAll('pagehide'));
-const onAppReady = () => { if (game.screen === 'boot' && !bootPreview) { game.screen = 'home'; render(); } };
+const pauseReasons = new Set();
+function addPauseReason(reason) { pauseReasons.add(reason); pauseGameplay(); }
+function removePauseReason(reason) { pauseReasons.delete(reason); if (pauseReasons.size === 0) resumeGameplay(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) addPauseReason('visibility'); else removePauseReason('visibility'); });
+window.addEventListener('blur', () => addPauseReason('blur'));
+window.addEventListener('focus', () => removePauseReason('blur'));
+window.addEventListener('pagehide', () => addPauseReason('pagehide'));
+const onAppReady = () => { if (game.screen === 'boot' && !bootPreview) { game.screen = 'home'; render(); gameReady(); } };
 render();
-if (!bootPreview) queueMicrotask(onAppReady);
+initPlatform({ onPause: () => addPauseReason('yandex'), onResume: () => removePauseReason('yandex') }).then((platform) => {
+  if (!hasSavedState && platform.kind === 'yandex') { game.language = getPlatformLanguage() === 'ru' ? 'ru' : 'en'; }
+  if (!bootPreview) onAppReady();
+});

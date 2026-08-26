@@ -30,6 +30,7 @@ button { font: inherit; -webkit-appearance: none; appearance: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 #app { position: relative; z-index: 1; display: grid; place-items: center; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+#app.boot-host { min-height: 100dvh; padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(14px, env(safe-area-inset-left)); align-items: center; }
 .boot-screen { display: grid; justify-items: center; gap: 14px; text-align: center; animation: boot-in 180ms ease-out both; }
 .boot-screen h1 { margin: 0; font-size: clamp(2.2rem, 7vw, 4rem); letter-spacing: -.07em; }
 .boot-screen p { color: var(--muted-ink); font-size: .92rem; }
@@ -119,8 +120,7 @@ p, span { margin: 0; }
 .icon-button { gap: 6px; }
 .sound-button { width: 42px; padding: 0; }
 .sound-button.is-off { color: var(--muted-ink); opacity: .72; }
-.audio-popover { position: absolute; z-index: 8; top: calc(100% + 8px); right: 0; display: grid; gap: 8px; width: 210px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 4px 0 rgb(37 42 39 / 14%); }
-.menu-controls .audio-popover, .menu-header-controls .audio-popover { top: calc(100% + 8px); right: 0; }
+.audio-popover { position: fixed; z-index: 20; top: 0; left: 0; display: grid; gap: 8px; width: 210px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 4px 0 rgb(37 42 39 / 14%); }
 .audio-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink); font-size: .8rem; font-weight: 700; }
 .audio-toggle { min-width: 58px; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--board); color: var(--ink); cursor: pointer; font-size: .7rem; font-weight: 760; }
 .audio-toggle.is-on { border-color: var(--accent); color: var(--accent); }
