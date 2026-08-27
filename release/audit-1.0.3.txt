@@ -1,0 +1,20 @@
+Arrow Shift 1.0.3
+PASS index.html root
+PASS unpacked size
+PASS filename audit
+PASS no source maps
+PASS no dev mocks
+PASS relative runtime assets
+PASS Yandex SDK /sdk.js loader
+PASS no duplicate dynamic SDK loader
+PASS ZIP entry separators
+PASS ZIP assets directory
+PASS ZIP referenced assets
+PASS production build
+File count: 4
+Unpacked size: 88252 bytes (86.2 KiB)
+Archive size: 25228 bytes (24.6 KiB)
+SHA256: a7983c551017f05ba8e5bac0703f5acee74b75686701c8f4fd9ac435ee906058
+ZIP entries: assets/index-B6OnGqZ7.js, assets/index-Bm9WXidd.css, favicon.svg, index.html
+Backslash entries: 0
+Missing referenced assets: 0
