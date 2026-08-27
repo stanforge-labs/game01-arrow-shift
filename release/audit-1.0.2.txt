@@ -1,0 +1,14 @@
+Arrow Shift 1.0.2
+PASS index.html root
+PASS unpacked size
+PASS filename audit
+PASS no source maps
+PASS no dev mocks
+PASS relative runtime assets
+PASS Yandex SDK /sdk.js loader
+PASS no duplicate dynamic SDK loader
+PASS production build
+File count: 4
+Unpacked size: 88252 bytes (86.2 KiB)
+Archive size: 25062 bytes (24.5 KiB)
+SHA256: 70c06a4d8dde52bcf751f5bc645d84a54cc76026a5c878823fc8d00426c7cf6e

@@ -1,7 +1,7 @@
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 const CLOUD_KEY = 'arrowShiftSave';
 const PLAYER_TIMEOUT = 2200;
-const SDK_INIT_TIMEOUT = 2500;
+const SDK_GLOBAL_TIMEOUT = 10000;
 const AD_TIMEOUT = 15000;
 
 let state = {
@@ -30,6 +30,24 @@ function withTimeout(promise, timeoutMs, fallback = null) {
     Promise.resolve(promise).catch(() => fallback),
     new Promise((resolve) => { timer = window.setTimeout(() => resolve(fallback), timeoutMs); }),
   ]).finally(() => { if (timer) window.clearTimeout(timer); });
+}
+
+// Yandex may expose the SDK global asynchronously even though the platform
+// injects its loader before our module entry. Observe that global rather than
+// injecting a second /sdk.js loader. YaGames.init() itself is intentionally
+// awaited without a short application timeout.
+function waitForSdkGlobal(timeoutMs = SDK_GLOBAL_TIMEOUT) {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (window.YaGames?.init) return Promise.resolve(window.YaGames);
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (window.YaGames?.init) return resolve(window.YaGames);
+      if (Date.now() - startedAt >= timeoutMs) return resolve(null);
+      window.setTimeout(check, 50);
+    };
+    check();
+  });
 }
 
 function installDevMock() {
@@ -89,6 +107,7 @@ async function initializePlayer() {
     state.playerPromise = withTimeout(state.ysdk.getPlayer(), PLAYER_TIMEOUT, null).then((player) => {
       state.player = player;
       state.cloudAvailable = Boolean(player?.getData && player?.setData);
+      if (player) console.info('[Arrow Shift/Yandex] player ready');
       return player;
     });
   }
@@ -99,20 +118,27 @@ async function initializePlatform(callbacks) {
   state.callbacks = callbacks;
   if (import.meta.env.DEV && isLocalHost()) installDevMock();
   try {
-    // Production index.html loads /sdk.js synchronously before the module entry.
-    // Never inject a second loader or call init until the global is available.
-    if (window.YaGames?.init) {
-      state.ysdk = await withTimeout(window.YaGames.init(), SDK_INIT_TIMEOUT, null);
+    // Production index.html contains the single documented /sdk.js tag. The
+    // platform can expose YaGames a little later, so wait for the global but
+    // never add another script element or race a second init call.
+    const sdkApi = isLocalHost() ? window.YaGames : await waitForSdkGlobal();
+    if (sdkApi?.init) {
+      console.info('[Arrow Shift/Yandex] sdk available');
+      console.info('[Arrow Shift/Yandex] init start');
+      state.ysdk = await sdkApi.init();
       if (!state.ysdk) throw new Error('Yandex SDK unavailable');
       state.kind = 'yandex';
+      console.info('[Arrow Shift/Yandex] init success');
+      const startupLanguage = state.ysdk?.environment?.i18n?.lang;
+      if (startupLanguage) console.info(`[Arrow Shift/Yandex] lang: ${startupLanguage}`);
       bindEvents();
       await initializePlayer();
     } else if (!isLocalHost()) {
-      console.warn('[Arrow Shift] Yandex SDK was not loaded from /sdk.js; using local platform fallback.');
+      console.error('[Arrow Shift/Yandex] /sdk.js did not expose YaGames before startup timeout; using local platform fallback.');
     }
-  } catch {
+  } catch (error) {
     state.ysdk = null; state.player = null; state.kind = 'local'; state.cloudAvailable = false;
-    if (!isLocalHost()) console.warn('[Arrow Shift] Yandex SDK initialization failed; using local platform fallback.');
+    if (!isLocalHost()) console.error('[Arrow Shift/Yandex] init failed', error);
   }
   state.initialized = true;
   return state;
@@ -150,6 +176,7 @@ export function gameReady() {
   if (state.readySent) return false;
   state.readySent = true;
   state.ysdk?.features?.LoadingAPI?.ready?.();
+  if (state.kind === 'yandex') console.info('[Arrow Shift/Yandex] LoadingAPI.ready');
   return true;
 }
 

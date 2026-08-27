@@ -583,7 +583,10 @@ window.addEventListener('pagehide', () => addPauseReason('pagehide'));
 const onAppReady = () => { if (game.screen === 'boot' && !bootPreview) { game.screen = 'home'; render(); gameReady(); } };
 render();
 initPlatform({ onPause: () => addPauseReason('yandex'), onResume: () => removePauseReason('yandex') }).then((platform) => {
-  if (!hasSavedState && platform.kind === 'yandex') { game.language = getPlatformLanguage() === 'ru' ? 'ru' : 'en'; }
+  // Always read the platform language during startup so Yandex can detect
+  // automatic i18n usage. A previously saved language remains authoritative.
+  const platformLanguage = platform.kind === 'yandex' ? getPlatformLanguage() : null;
+  if (!hasSavedState && platformLanguage) { game.language = platformLanguage === 'ru' ? 'ru' : 'en'; }
   cloudSaveManager = createCloudSaveManager({
     platform: { isPlayerAvailable, getCloudData, setCloudData },
     getProgress: getProgressSnapshot,
