@@ -1,0 +1,12 @@
+Arrow Shift 1.0.0
+PASS index.html root
+PASS unpacked size
+PASS filename audit
+PASS no source maps
+PASS no dev mocks
+PASS relative runtime assets
+PASS production build
+File count: 4
+Unpacked size: 87573 bytes (85.5 KiB)
+Archive size: 24844 bytes (24.3 KiB)
+SHA256: 7cc32fb718cfe67b88aaf31512f7c7b017d42a5530bef24a7239591f93419c0f

@@ -1,0 +1,21 @@
+{
+  "name": "arrow-shift",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "build:yandex": "vite build --base=./ --outDir dist-yandex",
+    "release:audit": "node scripts/release-audit.js",
+    "media:audit": "node scripts/media-audit.js",
+    "test": "vitest run",
+    "levels:report": "node scripts/levels-report.js",
+    "content:report": "node scripts/content-report.js",
+    "moderation:gate": "node scripts/yandex-moderation-gate.mjs"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}
