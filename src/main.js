@@ -12,6 +12,7 @@ import { RUSH_DURATION, createRushSession, finishRush, recordRushBlocked, record
 import { gameReady, gameplayStart, gameplayStop, getCloudData, getPlatformLanguage, initPlatform, isPlayerAvailable, setCloudData, showFullscreenAd } from './platform/yandex.js';
 import { createAdGate } from './platform/adGate.js';
 import { createCloudSaveManager } from './save/cloudSave.js';
+import { installInputProtection } from './inputProtection.js';
 
 const app = document.querySelector('#app');
 const initialSave = loadSave();
@@ -19,9 +20,7 @@ const audio = createAudioController();
 const bootPreview = import.meta.env.DEV && new URLSearchParams(window.location.search).get('screen') === 'boot';
 let hasSavedState = false;
 try { hasSavedState = Boolean(window.localStorage.getItem('arrow-shift-save')); } catch { hasSavedState = false; }
-app.addEventListener('contextmenu', (event) => {
-  if (event.target.closest('.game-shell')) event.preventDefault();
-});
+installInputProtection(app);
 const game = {
   screen: 'boot',
   mode: 'puzzle',

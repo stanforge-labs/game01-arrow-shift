@@ -6,7 +6,7 @@ import { createZipArchive, readZipEntryNames, toZipPath, zipEntryIssues } from '
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist-yandex');
 const release = resolve(root, 'release');
-const releaseVersion = process.env.RELEASE_VERSION || '1.0.1';
+const releaseVersion = process.env.RELEASE_VERSION || '1.0.4';
 const zip = resolve(release, `arrow-shift-yandex-${releaseVersion}.zip`);
 const auditPath = resolve(release, `audit-${releaseVersion}.txt`);
 const readmePath = resolve(release, `README-${releaseVersion}.md`);

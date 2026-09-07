@@ -11,7 +11,8 @@
     "media:audit": "node scripts/media-audit.js",
     "test": "vitest run",
     "levels:report": "node scripts/levels-report.js",
-    "content:report": "node scripts/content-report.js"
+    "content:report": "node scripts/content-report.js",
+    "moderation:gate": "node scripts/yandex-moderation-gate.mjs"
   },
   "devDependencies": {
     "vite": "^8.2.2",
